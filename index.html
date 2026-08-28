@@ -1,0 +1,2006 @@
+<!DOCTYPE html><script type="application/json" id="cowork-artifact-meta">
+{
+  "name": "Finn Eiendomsanalyse Drammen",
+  "schemaVersion": 1,
+  "description": "Daglig oppdatert dashboard for Finn-eiendommer i Drammen-området, med yield-analyse (brutto/netto), cashflow-beregning og AI-vurdering per annonse. Oppdateres av scheduled task \"finn-daily-analyzer\" hver morgen kl. 08:00.",
+  "mcpTools": [],
+  "mcpServerNames": []
+}
+</script>
+<html lang="nb">
+<head>
+<meta charset="UTF-8">
+<title>Finn Eiendomsanalyse — Drammen</title>
+<style>
+  :root { color-scheme: light; }
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    background: #fafafa;
+    color: #1a1a1a;
+    margin: 0;
+    padding: 24px 20px 40px;
+    line-height: 1.5;
+    font-size: 14px;
+  }
+  .container { max-width: 1080px; margin: 0 auto; }
+  h1 { font-size: 22px; margin: 0 0 4px; font-weight: 600; }
+  .meta { color: #6a6a6a; font-size: 13px; }
+  .meta .dot { margin: 0 6px; color: #ccc; }
+  .criteria {
+    background: #f0f6fc;
+    border: 1px solid #d0e2f5;
+    border-radius: 8px;
+    padding: 12px 16px;
+    margin: 16px 0 24px;
+    font-size: 13px;
+    line-height: 1.7;
+  }
+  .criteria strong { color: #0a3069; }
+  .section-title {
+    font-size: 13px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: #555;
+    margin: 28px 0 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .section-title .count {
+    background: #e5e5e5;
+    color: #444;
+    padding: 1px 8px;
+    border-radius: 10px;
+    font-size: 11px;
+  }
+  .section-title.match .count { background: #2da44e; color: white; }
+  .section-title.borderline .count { background: #d4a017; color: white; }
+  .section-title.filtered .count { background: #999; color: white; }
+  .card {
+    background: white;
+    border: 1px solid #e5e5e5;
+    border-radius: 10px;
+    padding: 18px 20px;
+    margin-bottom: 12px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+  }
+  .card.match { border-left: 4px solid #2da44e; }
+  .card.borderline { border-left: 4px solid #d4a017; }
+  .card.filtered { border-left: 4px solid #b0b0b0; opacity: 0.88; }
+  .card-head {
+    display: flex; justify-content: space-between; align-items: flex-start;
+    gap: 16px; margin-bottom: 4px;
+  }
+  .addr { font-weight: 600; font-size: 15px; color: #111; }
+  .addr-sub { color: #6a6a6a; font-size: 13px; margin-top: 2px; }
+  .price-block { text-align: right; flex-shrink: 0; }
+  .price-main { font-weight: 600; font-size: 15px; }
+  .price-sub { color: #6a6a6a; font-size: 12px; margin-top: 2px; }
+  .metrics {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    margin: 14px 0 12px;
+  }
+  .metric {
+    background: #f6f8fa;
+    border-radius: 6px;
+    padding: 8px 10px;
+  }
+  .metric.pass { background: #dafbe1; }
+  .metric.fail { background: #ffebe9; }
+  .metric.neutral { background: #f6f8fa; }
+  .metric-label { color: #555; font-size: 11px; text-transform: uppercase; letter-spacing: 0.4px; }
+  .metric-value { font-weight: 600; font-size: 14px; margin-top: 2px; }
+  .metric-sub { color: #888; font-size: 10px; margin-top: 2px; }
+  .metrics-label {
+    font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;
+    color: #777; font-weight: 600; margin: 12px 0 6px;
+  }
+  .ai {
+    background: #f8f5ff;
+    border-radius: 6px;
+    padding: 10px 14px;
+    margin: 10px 0;
+    font-size: 13px;
+    line-height: 1.55;
+  }
+  .ai h4 {
+    margin: 0 0 4px; font-size: 11px; text-transform: uppercase;
+    letter-spacing: 0.5px; color: #5a3a8e; font-weight: 700;
+  }
+  .ai .factor { margin: 6px 0; }
+  .ai .factor-label { font-weight: 600; color: #333; }
+  .flag {
+    background: #fff5f5;
+    border-left: 3px solid #cf222e;
+    padding: 6px 10px;
+    margin-top: 6px;
+    font-size: 12px;
+    border-radius: 3px;
+  }
+  .flag-positive {
+    background: #f0fff4;
+    border-left: 3px solid #2da44e;
+  }
+  .footer-links { margin-top: 10px; display: flex; gap: 14px; font-size: 12px; align-items: center; }
+  .footer-links a { color: #1f6feb; text-decoration: none; }
+  .footer-links a:hover { text-decoration: underline; }
+  .excel-btn {
+    background: #1d6f42; color: white; border: none; border-radius: 5px;
+    padding: 6px 12px; font-size: 12px; font-weight: 600; cursor: pointer;
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+  .excel-btn:hover { background: #155330; }
+  .excel-btn:active { transform: translateY(1px); }
+  .toast {
+    position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+    background: #1a1a1a; color: white; padding: 12px 20px;
+    border-radius: 8px; font-size: 13px; max-width: 90%;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.25); z-index: 1000;
+    opacity: 0; transition: opacity 0.2s;
+  }
+  .toast.show { opacity: 1; }
+  .empty {
+    text-align: center; padding: 60px 20px; color: #6a6a6a;
+    background: white; border: 1px dashed #d5d5d5; border-radius: 10px;
+  }
+  .empty h3 { color: #333; margin: 0 0 6px; font-size: 16px; }
+  .runlog {
+    margin-top: 32px; font-size: 12px; color: #6a6a6a;
+    border-top: 1px solid #e5e5e5; padding-top: 12px;
+  }
+  .runlog-entry { padding: 3px 0; }
+  .runlog-entry .ts { color: #999; margin-right: 8px; }
+  .status-banner {
+    background: #fff8e1; border: 1px solid #f0d27e;
+    padding: 10px 14px; border-radius: 8px; font-size: 13px;
+    margin: 16px 0; color: #5d4500;
+  }
+  .top-five { background: linear-gradient(135deg, #f0f6fc 0%, #fff8e1 100%); border: 1px solid #d0e2f5; border-radius: 10px; padding: 16px 20px; margin: 16px 0 24px; }
+  .top-five-title { font-size: 14px; font-weight: 700; color: #0a3069; margin-bottom: 10px; }
+  .top-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .top-table th { text-align: left; color: #555; font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.4px; padding: 6px 8px; border-bottom: 1px solid #d0e2f5; }
+  .top-table td { padding: 8px 8px; border-bottom: 1px solid #e5e5e5; vertical-align: top; }
+  .top-table tr:last-child td { border-bottom: none; }
+  .top-row { cursor: pointer; transition: background 0.15s; }
+  .top-row:hover { background: rgba(255,255,255,0.7); }
+  .rank { font-weight: 700; font-size: 16px; color: #6a6a6a; width: 32px; }
+  .top-row:first-child .rank { color: #b8860b; font-size: 18px; }
+  .cat-badge { display: inline-block; width: 22px; height: 22px; border-radius: 50%; text-align: center; line-height: 22px; font-size: 11px; font-weight: 700; color: white; }
+  .cat-badge.cat-match { background: #2da44e; }
+  .cat-badge.cat-borderline { background: #d4a017; }
+  .cat-badge.cat-filtered { background: #999; }
+  .addr-cell { min-width: 200px; }
+  .reason { font-size: 11px; color: #666; margin-top: 3px; line-height: 1.4; }
+  .num { font-weight: 600; text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .num.pos { color: #1a7f3c; }
+  .num.neg { color: #b3261e; }
+  .flags-cell { font-size: 12px; color: #555; white-space: nowrap; }
+  .score-cell { font-weight: 700; text-align: right; color: #0a3069; font-variant-numeric: tabular-nums; }
+  .top-five-note { font-size: 11px; color: #6a6a6a; margin-top: 8px; text-align: right; }
+  .card.highlighted { animation: pulse 2s ease; }
+  @keyframes pulse { 0%, 100% { box-shadow: 0 1px 2px rgba(0,0,0,0.03); } 50% { box-shadow: 0 0 0 3px rgba(9,105,218,0.4); } }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>Finn Eiendomsanalyse — Drammen-området</h1>
+  <div class="meta">
+    Sist oppdatert: <span id="last-updated">Aldri</span>
+    <span class="dot">·</span>
+    Status: <span id="last-status">Ikke kjørt</span>
+    <span class="dot">·</span>
+    Analysert totalt: <span id="analyzed-count">0</span>
+  </div>
+
+  <div class="criteria">
+    <strong>Søk:</strong> Drammen + 20 min radius, maks 4 000 000 kr, selveier/borettslag (<a href="https://www.finn.no/realestate/homes/search.html?bbox=9.9322137867%2C59.6989777588%2C10.2499589954%2C59.8038716478&price_to=4000000&ownership_type=3&ownership_type=2&stored-id=88079315&" target="_blank" style="color:#0969da">åpne søk på Finn</a>)<br>
+    <strong>Hardt filter:</strong> Bruttoyield ≥ 6,5 % &nbsp;OG&nbsp; nettoyield ≥ 2,5 %<br>
+    <strong>Antagelser:</strong> 75 % LTV @ 5 % rente avdragsfritt · 11,4 mnd årlig belegg · 7 % vedlikehold av leie · komm. avg. 12 000 kr/år hvis ikke oppgitt · <strong>verdistigning 1,75 %/år</strong> (forsiktig anslag)
+  </div>
+
+  <div id="status-area"></div>
+  <div id="top-five-container"></div>
+  <div id="content"></div>
+  <div id="runlog" class="runlog"></div>
+</div>
+
+<script>
+const DATA = /*__DATA_START__*/{
+  "lastUpdated": "2026-08-28T08:00:00+02:00",
+  "lastRunStatus": "Auto: 2 nye (1 match, 1 bord, 0 filt). Steg: steg1,steg2,steg3,steg4,steg5,steg6,steg7. top5-migrering: allerede anvendt",
+  "analyzedCount": 96,
+  "matches": [
+    {
+      "finnkode": "466027136",
+      "finnUrl": "https://www.finn.no/realestate/homes/ad.html?finnkode=466027136",
+      "address": "Smørbukken 19, 3055 Krokstadelva",
+      "type": "Enebolig",
+      "ownership": "Selveier",
+      "size": 175,
+      "bedrooms": 3,
+      "buildYear": 1994,
+      "askingPrice": 3900000,
+      "totalPrice": 3998590,
+      "commonCosts": 0,
+      "municipalFees": 14511,
+      "estMonthlyRent": 47950,
+      "rentPerSqm": 274,
+      "compCount": 48,
+      "lowConfidence": false,
+      "annualGrossRent": 546630,
+      "annualOwnerCosts": 52775,
+      "noi": 493855,
+      "bruttoyield": 14.02,
+      "nettoyield": 12.66,
+      "loanAmount": 2925000,
+      "equity": 1072500,
+      "annualInterest": 146250,
+      "cashflow": 347605,
+      "cashOnCash": 32.41,
+      "annualAppreciation": 68250,
+      "totalReturnAnnual": 415855,
+      "totalReturnEKPct": 38.77,
+      "analyzedAt": "2026-08-13T08:24:31+02:00",
+      "ai": {
+        "priceVsArea": "22 286 kr/m² på totalt bruksareal (175 m², hvorav 142 m² BRA-i og 33 m² eksternt) er svært lavt for Krokstadelva. Verditakst 4 300 000 kr er 400 000 kr over prisantydning — klar underprising.",
+        "condition": "Byggeår 1994 gir moderne standard sammenlignet med mange eldre alternativer i søket. Ingen kjent renoveringsbehov.",
+        "location": "Krokstadelva, barnevennlig og etablert. Stor terrasse med fin utsikt, nær skog og mark.",
+        "redFlags": [
+          "VIKTIG: Yield er beregnet på totalt bruksareal 175 m² inkl. 33 m² eksternt areal — reelt yield på 142 m² BRA-i vil være lavere, men fortsatt sterkt",
+          "Byggeår 1994 nærmer seg 30 år — enkelte tekniske installasjoner kan trenge fornyelse"
+        ],
+        "positives": [
+          "Bruttoyield 14,02% og nettoyield 12,66% — beste tall i denne kjøringen",
+          "Verditakst 4 300 000 kr er 400 000 kr over prisantydning — solid underprising",
+          "Ingen felleskost, garasje inkludert",
+          "3 soverom gir bred leietakerbase",
+          "Cashflow 347 605 kr/år (CoC 32,41%)"
+        ]
+      }
+    },
+    {
+      "finnkode": "472373698",
+      "finnUrl": "https://www.finn.no/realestate/homes/ad.html?finnkode=472373698",
+      "address": "Gamle Riksvei 72, 3057 Solbergelva",
+      "type": "Enebolig",
+      "ownership": "Selveier",
+      "size": 117,
+      "bedrooms": 2,
+      "buildYear": 1960,
+      "askingPrice": 3690000,
+      "totalPrice": 3783340,
+      "commonCosts": 0,
+      "municipalFees": 14538,
+      "estMonthlyRent": 32058,
+      "rentPerSqm": 274,
+      "compCount": 48,
+      "lowConfidence": false,
+      "annualGrossRent": 365461,
+      "annualOwnerCosts": 40120,
+      "noi": 325341,
+      "bruttoyield": 9.9,
+      "nettoyield": 8.82,
+      "loanAmount": 2767500,
+      "equity": 1014750,
+      "annualInterest": 138375,
+      "cashflow": 186966,
+      "cashOnCash": 18.42,
+      "annualAppreciation": 64575,
+      "totalReturnAnnual": 251541,
+      "totalReturnEKPct": 24.79,
+      "analyzedAt": "2026-08-13T08:24:31+02:00",
+      "ai": {
+        "priceVsArea": "31 538 kr/m² (117 m² BRA, internt = totalt) er moderat for Solbergelva.",
+        "condition": "Byggeår 1960. Annonsetittelen oppgir eksplisitt at 'modernisering må påregnes' — omfang av investeringsbehov er ikke spesifisert og bør avklares før kjøp.",
+        "location": "Solbergelva, etablert og barnevennlig område. Stor terrasse og hage, tomt 593 m² (eiet).",
+        "redFlags": [
+          "VIKTIG: Tittelen oppgir eksplisitt 'modernisering må påregnes' — investeringsbehov ukjent omfang, bør avklares med takstrapport før kjøp",
+          "Byggeår 1960 uten oppgitt oppgraderingshistorikk",
+          "Kun 2 soverom begrenser leietakerbase noe"
+        ],
+        "positives": [
+          "Bruttoyield 9,90% og nettoyield 8,82% — godt over terskel",
+          "Ingen felleskost",
+          "Stor eiet tomt 593 m²",
+          "Terrasse 42 m²",
+          "Cashflow 186 966 kr/år (CoC 18,42%)"
+        ]
+      }
+    },
+    {
+      "finnkode": "473261949",
+      "finnUrl": "https://www.finn.no/realestate/homes/ad.html?finnkode=473261949",
+      "address": "Jørgen Ringstads vei 2, 3040 Drammen",
+      "type": "Tomannsbolig",
+      "ownership": "Selveier",
+      "size": 106,
+      "bedrooms": 2,
+      "buildYear": 1953,
+      "askingPrice": 3500000,
+      "totalPrice": 3588590,
+      "commonCosts": 0,
+      "municipalFees": 13507,
+      "estMonthlyRent": 28514,
+      "rentPerSqm": 269,
+      "compCount": 45,
+      "lowConfidence": true,
+      "annualGrossRent": 325060,
+      "annualOwnerCosts": 36261,
+      "noi": 288798,
+      "bruttoyield": 9.29,
+      "nettoyield": 8.25,
+      "loanAmount": 2625000,
+      "equity": 962500,
+      "annualInterest": 131250,
+      "cashflow": 157548,
+      "cashOnCash": 16.37,
+      "annualAppreciation": 61250,
+      "totalReturnAnnual": 218798,
+      "totalReturnEKPct": 22.73,
+      "analyzedAt": "2026-08-17T08:00:00+02:00",
+      "ai": {
+        "priceVsArea": "33 019 kr/m² for 106 m² halvpart av tomannsbolig på Hedensrud er lavt for Drammen — samme strøk som tidligere analyserte Jørgen Ringstads vei 18 (matchet i juli med lignende yield-profil).",
+        "condition": "Byggeår 1953, pent bad fra 2022. Garasje inkludert. Ingen annen oppgraderingshistorikk oppgitt — rør og el bør besiktiges.",
+        "location": "Hedensrud er rolig og etablert, samme strøk som flere tidligere matcher i dette søket. Kort vei til sentrum og marka.",
+        "redFlags": [
+          "VIKTIG: 269 kr/m² for 106 m² stor bolig er trolig noe optimistisk — store enheter leier ofte lavere kr/m² enn små (lowConfidence=true)",
+          "Byggeår 1953 uten fullstendig oppgraderingshistorikk — kun bad er oppgitt fornyet (2022)",
+          "Kun 2 soverom for 106 m² — noe romslig planløsning kan begrense leietakerbase"
+        ],
+        "positives": [
+          "Lav kvm-pris (33 019 kr/m²) sammenlignet med tilsvarende boliger i søket",
+          "Pent bad fra 2022 og garasje inkludert",
+          "Ingen felleskostnader",
+          "Bruttoyield 9,29% og nettoyield 8,25% — solid margin over terskel",
+          "Samme gate som tidligere match (Jørgen Ringstads vei 18) — kjent og velfungerende strøk for utleie"
+        ]
+      }
+    },
+    {
+      "finnkode": "465784235",
+      "finnUrl": "https://www.finn.no/realestate/homes/ad.html?finnkode=465784235",
+      "address": "Gamle Pukerudvei 9, 3048 Drammen",
+      "type": "Tomannsbolig",
+      "ownership": "Selveier",
+      "size": 127,
+      "bedrooms": 2,
+      "buildYear": 1905,
+      "askingPrice": 3590000,
+      "totalPrice": 3680840,
+      "commonCosts": 0,
+      "municipalFees": 14718,
+      "estMonthlyRent": 33528,
+      "rentPerSqm": 264,
+      "compCount": 46,
+      "lowConfidence": true,
+      "annualGrossRent": 382219,
+      "annualOwnerCosts": 41473,
+      "noi": 340746,
+      "bruttoyield": 10.65,
+      "nettoyield": 9.49,
+      "loanAmount": 2692500,
+      "equity": 987250,
+      "annualInterest": 134625,
+      "cashflow": 206121,
+      "cashOnCash": 20.88,
+      "annualAppreciation": 62825,
+      "totalReturnAnnual": 268946,
+      "totalReturnEKPct": 27.24,
+      "analyzedAt": "2026-08-19T08:00:00+02:00",
+      "ai": {
+        "priceVsArea": "28 268 kr/m² for 127 m² halvpart av tomannsbolig i Gulskogen/Pukerud er lavt, i tråd med andre rimelige eldre boliger i søket.",
+        "condition": "Byggeår 1905, ingen oppgitt oppgraderingshistorikk — bad, kjøkken, el og rør bør besiktiges nøye før kjøp. Garasje inkludert.",
+        "location": "Gulskogen/Pukerud, landlig beliggenhet med utsikt mot elva. Rolig strøk noe utenfor sentrum.",
+        "redFlags": [
+          "VIKTIG: 264 kr/m² for stor 127 m² bolig er trolig noe optimistisk — store enheter leier ofte lavere kr/m² enn små (lowConfidence=true)",
+          "Byggeår 1905 uten oppgitt oppgraderingshistorikk — risiko for eldre rør og el-anlegg",
+          "Landlig beliggenhet kan bety noe avstand til kollektivtransport"
+        ],
+        "positives": [
+          "Lav kvm-pris (28 268 kr/m²) sammenlignet med tilsvarende boliger i søket",
+          "Garasje og solrik terrasse/hage inkludert",
+          "Utsikt mot elva",
+          "Ingen felleskostnader",
+          "Cashflow 206 121 kr/år, CoC 20,88% — sterke tall selv konservativt vurdert"
+        ]
+      }
+    },
+    {
+      "finnkode": "473888455",
+      "finnUrl": "https://www.finn.no/realestate/homes/ad.html?finnkode=473888455",
+      "address": "Vårveien 20, 3024 Drammen",
+      "type": "Leilighet",
+      "ownership": "Selveier",
+      "size": 88,
+      "bedrooms": 2,
+      "buildYear": 1959,
+      "askingPrice": 2690000,
+      "totalPrice": 2758630,
+      "commonCosts": 3765,
+      "municipalFees": 12000,
+      "estMonthlyRent": 21384,
+      "rentPerSqm": 243,
+      "compCount": 15,
+      "lowConfidence": false,
+      "annualGrossRent": 243778,
+      "annualOwnerCosts": 74244,
+      "noi": 169533,
+      "bruttoyield": 9.06,
+      "nettoyield": 6.3,
+      "loanAmount": 2017500,
+      "equity": 739750,
+      "annualInterest": 100875,
+      "cashflow": 68658,
+      "cashOnCash": 9.28,
+      "annualAppreciation": 47075,
+      "totalReturnAnnual": 115733,
+      "totalReturnEKPct": 15.64,
+      "analyzedAt": "2026-08-22T18:59:57+02:00",
+      "ai": {
+        "priceVsArea": "31 348 kr/m² på totalt bruksareal (88 m², hvorav 67 m² BRA-i) er moderat for Åssiden/Gamle Drammen — markedsført eksplisitt som 'perfekt utleieobjekt'.",
+        "condition": "Byggeår 1959, ingen oppgitt oppgraderingshistorikk i utdraget — bad, kjøkken, rør og el bør besiktiges.",
+        "location": "Åssiden, Gamle Drammen — etablert strøk med god tilgjengelighet til sentrum.",
+        "redFlags": [
+          "VIKTIG: Yield er beregnet på totalt bruksareal 88 m² inkl. ca. 21 m² eksternt areal — reelt yield på 67 m² BRA-i vil være lavere",
+          "Byggeår 1959 uten oppgitt oppgraderingshistorikk",
+          "Visning allerede 26. aug — kort tidsfrist for befaring"
+        ],
+        "positives": [
+          "Bruttoyield 9,06% og nettoyield 6,30% — solid margin over terskel",
+          "Markedsført eksplisitt som 'perfekt utleieobjekt'",
+          "Parkering og balkong inkludert",
+          "15 sammenlignbare leieobjekter i størrelsesintervallet — høy datakvalitet"
+        ]
+      }
+    },
+    {
+      "finnkode": "474007698",
+      "finnUrl": "https://www.finn.no/realestate/homes/ad.html?finnkode=474007698",
+      "address": "Skogerveien 12, 3041 Drammen",
+      "type": "Enebolig",
+      "ownership": "Selveier",
+      "size": 141,
+      "bedrooms": 2,
+      "buildYear": 1931,
+      "askingPrice": 3900000,
+      "totalPrice": 3998590,
+      "commonCosts": 0,
+      "municipalFees": 14829,
+      "estMonthlyRent": 28623,
+      "rentPerSqm": 203,
+      "compCount": 44,
+      "lowConfidence": true,
+      "annualGrossRent": 326302,
+      "annualOwnerCosts": 37670,
+      "noi": 288632,
+      "bruttoyield": 8.37,
+      "nettoyield": 7.4,
+      "loanAmount": 2925000,
+      "equity": 1072500,
+      "annualInterest": 146250,
+      "cashflow": 142382,
+      "cashOnCash": 13.28,
+      "annualAppreciation": 68250,
+      "totalReturnAnnual": 210632,
+      "totalReturnEKPct": 19.64,
+      "analyzedAt": "2026-08-23T08:00:00+02:00",
+      "ai": {
+        "priceVsArea": "27 660 kr/m² på totalt bruksareal (141 m², hvorav 111 m² BRA-i og 30 m² eksternt) er lavt for Frydenhaug — verditakst matcher prisantydning nøyaktig.",
+        "condition": "Byggeår 1931, ingen oppgitt oppgraderingshistorikk — bad, kjøkken, rør og el bør besiktiges. Garasje og skjermet hage inkludert.",
+        "location": "Frydenhaug, meget god beliggenhet, stor eiet tomt på 721 m² med skjermet hage.",
+        "redFlags": [
+          "VIKTIG: Yield er beregnet på totalt bruksareal 141 m² inkl. 30 m² eksternt areal — leieestimat er nedjustert 25% for boligstørrelse, men reelt yield på 111 m² BRA-i er trolig lavere (lowConfidence=true)",
+          "Byggeår 1931 uten oppgitt oppgraderingshistorikk — teknisk tilstand bør avklares før bud",
+          "Kun 2 soverom for en enebolig på 141 m² kan begrense leietakerbase noe"
+        ],
+        "positives": [
+          "Bruttoyield 8,37% og nettoyield 7,40% — begge klart over terskel",
+          "Verditakst 3 900 000 kr matcher prisantydning nøyaktig — fair pricing",
+          "Ingen felleskostnader, garasje og stor skjermet hage inkludert",
+          "Stor eiet tomt 721 m²",
+          "Cashflow 142 382 kr/år (CoC 13,28%) — solid resultat"
+        ]
+      }
+    },
+    {
+      "finnkode": "474469167",
+      "finnUrl": "https://www.finn.no/realestate/homes/ad.html?finnkode=474469167",
+      "address": "Vestsideveien 3C, 3403 Lier",
+      "type": "Leilighet",
+      "ownership": "Selveier",
+      "size": 91,
+      "bedrooms": 2,
+      "buildYear": 1996,
+      "askingPrice": 3500000,
+      "totalPrice": 3588590,
+      "commonCosts": 5028,
+      "municipalFees": 12000,
+      "estMonthlyRent": 21385,
+      "rentPerSqm": 235,
+      "compCount": 15,
+      "lowConfidence": false,
+      "annualGrossRent": 243789,
+      "annualOwnerCosts": 89401,
+      "noi": 154388,
+      "bruttoyield": 6.97,
+      "nettoyield": 4.41,
+      "loanAmount": 2625000,
+      "equity": 962500,
+      "annualInterest": 131250,
+      "cashflow": 23138,
+      "cashOnCash": 2.4,
+      "annualAppreciation": 61250,
+      "totalReturnAnnual": 84388,
+      "totalReturnEKPct": 8.77,
+      "analyzedAt": "2026-08-25T08:00:00+02:00",
+      "ai": {
+        "priceVsArea": "38 462 kr/m² (91 m² BRA, 86 m² BRA-i) for Lierbyen sentrum er moderat og under nivået i Drammen sentrum for tilsvarende størrelse.",
+        "condition": "Byggeår 1996, ingen oppgitt nylig oppgradering — bad og kjøkken bør besiktiges. Garasje og balkong inkludert.",
+        "location": "Lierbyen sentrum — sentral beliggenhet med kort vei til butikker og kollektivtransport, 2. etasje.",
+        "redFlags": [
+          "Byggeår 1996 uten oppgitt oppgraderingshistorikk",
+          "Kun 2 soverom (3-roms) begrenser leietakerbase noe",
+          "Kommunale avgifter ikke oppgitt i annonsen — bruker fallback 12 000 kr/år, kan avvike fra faktisk"
+        ],
+        "positives": [
+          "Verditakst 3 500 000 kr matcher prisantydning nøyaktig — fair pricing",
+          "Bruttoyield 6,97% og nettoyield 4,41% — begge over terskel, fullt match",
+          "Garasje og flott balkong inkludert",
+          "Positiv cashflow 23 138 kr/år (CoC 2,40%)",
+          "Sentral beliggenhet i Lierbyen sentrum"
+        ]
+      }
+    },
+    {
+      "finnkode": "474572710",
+      "finnUrl": "https://www.finn.no/realestate/homes/ad.html?finnkode=474572710",
+      "address": "Hotvetveien 85, 3023 Drammen",
+      "type": "Leilighet",
+      "ownership": "Selveier",
+      "size": 72,
+      "bedrooms": 1,
+      "buildYear": 1952,
+      "askingPrice": 2450000,
+      "totalPrice": 2682275,
+      "commonCosts": 5584,
+      "municipalFees": 12000,
+      "estMonthlyRent": 18000,
+      "rentPerSqm": 250,
+      "compCount": 21,
+      "lowConfidence": false,
+      "annualGrossRent": 205200,
+      "annualOwnerCosts": 93372,
+      "noi": 111828,
+      "bruttoyield": 8.38,
+      "nettoyield": 4.56,
+      "loanAmount": 1837500,
+      "equity": 673750,
+      "annualInterest": 91875,
+      "cashflow": 19953,
+      "cashOnCash": 2.96,
+      "annualAppreciation": 42875,
+      "totalReturnAnnual": 62828,
+      "totalReturnEKPct": 9.32,
+      "analyzedAt": "2026-08-26T08:00:00+02:00",
+      "ai": {
+        "priceVsArea": "34 028 kr/m² for 72 m² leilighet på Øren er lavt for Drammen, men gjenspeiler oppussingsbehov.",
+        "condition": "Byggeår 1952, uttrykkelig markedsført som 'oppussingsklar' — indikerer betydelig oppgraderingsbehov på bad/kjøkken/gulv. Bør innhente kostnadsoverslag før bud.",
+        "location": "Øren, Drammen — etablert boligområde med god tilgjengelighet, sydvestvendt balkong og utsikt.",
+        "redFlags": [
+          "VIKTIG: Annonsen nevner 'IN-ordning' — kan innebære eierskapsbegrensninger (f.eks. botidskrav eller inntektsgrense) som er uforenlig med ren utleieinvestering. Bør avklares med megler før bud",
+          "'Oppussingsklar' i tittelen indikerer behov for renovering — omfang og kostnad er ukjent",
+          "Fellesgjeld 153 215 kr på leiligheten øker reell kjøpesum",
+          "Byggeår 1952 uten oppgitt oppgraderingshistorikk",
+          "Kommunale avgifter ikke oppgitt — bruker fallback 12 000 kr/år"
+        ],
+        "positives": [
+          "Bruttoyield 8,38% og nettoyield 4,56% — begge klart over terskel",
+          "Sydvestvendt balkong, utsikt og egen parkeringsplass",
+          "Lav kvm-pris (34 028 kr/m²) for Drammen sentrum-nært område",
+          "Positiv cashflow 19 953 kr/år (CoC 2,96%)",
+          "21 sammenlignbare leieobjekter i størrelsesintervallet — god datakvalitet"
+        ]
+      }
+    },
+    {
+      "finnkode": "474462308",
+      "finnUrl": "https://www.finn.no/realestate/homes/ad.html?finnkode=474462308",
+      "address": "Austadgata 37, 3043 Drammen",
+      "type": "Tomannsbolig",
+      "ownership": "Selveier",
+      "size": 121,
+      "bedrooms": 1,
+      "buildYear": 1932,
+      "askingPrice": 4000000,
+      "totalPrice": 4101090,
+      "commonCosts": 0,
+      "municipalFees": 15906,
+      "estMonthlyRent": 23958,
+      "rentPerSqm": 198,
+      "compCount": 46,
+      "lowConfidence": true,
+      "annualGrossRent": 273121,
+      "annualOwnerCosts": 35024,
+      "noi": 238097,
+      "bruttoyield": 6.83,
+      "nettoyield": 5.95,
+      "loanAmount": 3000000,
+      "equity": 1100000,
+      "annualInterest": 150000,
+      "cashflow": 88097,
+      "cashOnCash": 8.01,
+      "annualAppreciation": 70000,
+      "totalReturnAnnual": 158097,
+      "totalReturnEKPct": 14.37,
+      "analyzedAt": "2026-08-26T08:00:00+02:00",
+      "ai": {
+        "priceVsArea": "33 058 kr/m² på totalt bruksareal (121 m², hvorav 107 m² BRA-i) er lavt for Strømsø/Gamle Drammen — attraktivt prisnivå for halvpart av tomannsbolig.",
+        "condition": "Byggeår 1932, ny garasje fra 2023. Ingen annen oppgraderingshistorikk oppgitt — bad, kjøkken, rør og el bør besiktiges før kjøp.",
+        "location": "Strømsø/Gamle Drammen, sentralt beliggende med solrike terrasser og felles hage.",
+        "redFlags": [
+          "VIKTIG: Leieestimat er nedjustert 25% (sizeAdjustment 0,75) for stor boligstørrelse (121 m²) — kun 3 komparable i det snevre størrelsesintervallet, reelt yield kan avvike (lowConfidence=true)",
+          "Byggeår 1932 uten oppgitt oppgraderingshistorikk utover garasje",
+          "Kun 1 soverom for en 121 m² bolig begrenser leietakerbase betydelig",
+          "Prisantydning 4 000 000 kr er akkurat på grensen av søkets prisfilter"
+        ],
+        "positives": [
+          "Bruttoyield 6,83% og nettoyield 5,95% — begge over terskel",
+          "Ny garasje fra 2023 inkludert i parkering",
+          "Solrike terrasser (39 m² TBA) og felles hage",
+          "Cashflow 88 097 kr/år (CoC 8,01%) — solid resultat",
+          "Sentral beliggenhet på Strømsø"
+        ]
+      }
+    },
+    {
+      "finnkode": "446113923",
+      "finnUrl": "https://www.finn.no/realestate/homes/ad.html?finnkode=446113923",
+      "address": "Markusveien 22, 3041 Drammen",
+      "type": "Tomannsbolig",
+      "ownership": "Selveier",
+      "size": 106,
+      "bedrooms": 1,
+      "buildYear": 1950,
+      "askingPrice": 3590000,
+      "totalPrice": 3684840,
+      "commonCosts": 0,
+      "municipalFees": 19531,
+      "estMonthlyRent": 21730,
+      "rentPerSqm": 205,
+      "compCount": 8,
+      "lowConfidence": false,
+      "annualGrossRent": 247722,
+      "annualOwnerCosts": 36872,
+      "noi": 210850,
+      "bruttoyield": 6.9,
+      "nettoyield": 5.87,
+      "loanAmount": 2692500,
+      "equity": 987250,
+      "annualInterest": 134625,
+      "cashflow": 76225,
+      "cashOnCash": 7.72,
+      "annualAppreciation": 62825,
+      "totalReturnAnnual": 139050,
+      "totalReturnEKPct": 14.09,
+      "analyzedAt": "2026-08-28T08:00:00+02:00",
+      "ai": {
+        "priceVsArea": "33 868 kr/m² for 106 m² halvpart av tomannsbolig på Austad/Gamle Drammen er moderat — fair prisnivå for strøket.",
+        "condition": "Byggeår 1950, men renovert i 2016 — reduserer teknisk risiko betydelig sammenlignet med andre eldre boliger i søket.",
+        "location": "Austad/Gamle Drammen, kort vei til sentrum, tog og marka. Fantastisk utsikt og balkong.",
+        "redFlags": [
+          "Kun 1 soverom for en 106 m² bolig begrenser leietakerbasen betydelig til tross for arealet",
+          "Kommunale avgifter 19 531 kr/år er relativt høyt og trekker ned nettoavkastningen",
+          "Byggeår 1950 — selv om renovert i 2016 bør omfanget av renoveringen avklares (bad/kjøkken/rør/el)"
+        ],
+        "positives": [
+          "Bruttoyield 6,90% og nettoyield 5,87% — begge over terskel, fullt match",
+          "Renovert i 2016 — lavere vedlikeholdsrisiko enn andre 1950-tallsboliger i søket",
+          "Stor eiet tomt 739 m², balkong og p-plass inkludert",
+          "Ingen felleskostnader",
+          "Cashflow 76 225 kr/år (CoC 7,72%)"
+        ]
+      }
+    }
+  ],
+  "borderline": [
+    {
+      "finnkode": "465202480",
+      "finnUrl": "https://www.finn.no/realestate/homes/ad.html?finnkode=465202480",
+      "address": "Danvikgata 20 A, 3045 Drammen",
+      "type": "Andre",
+      "ownership": "Aksje",
+      "size": 47,
+      "bedrooms": 1,
+      "buildYear": 1969,
+      "askingPrice": 2170000,
+      "totalPrice": 2980263,
+      "commonCosts": 8340,
+      "municipalFees": 12000,
+      "estMonthlyRent": 13113,
+      "rentPerSqm": 279,
+      "compCount": 46,
+      "lowConfidence": false,
+      "annualGrossRent": 149488,
+      "annualOwnerCosts": 122544,
+      "noi": 26944,
+      "bruttoyield": 6.89,
+      "nettoyield": 1.24,
+      "loanAmount": 1627500,
+      "equity": 596750,
+      "annualInterest": 81375,
+      "cashflow": -54431,
+      "cashOnCash": -9.12,
+      "annualAppreciation": 37975,
+      "totalReturnAnnual": -16456,
+      "totalReturnEKPct": -2.76,
+      "analyzedAt": "2026-08-20T08:00:00+02:00",
+      "ai": {
+        "priceVsArea": "46 170 kr/m² (basert på prisantydning) virker moderat, men totalprisen er 2 980 263 kr grunnet svært høy fellesgjeld på 810 263 kr — reell kvm-pris er nærmere 63 000 kr/m².",
+        "condition": "Byggeår 1969, fasade og balkonger rehabilitert 2021. 4. etasje med heis.",
+        "location": "Nybyen/Strømsø, sentralt og gangavstand til tog.",
+        "redFlags": [
+          "VIKTIG: Svært høy fellesgjeld 810 263 kr og felleskost 8 340 kr/mnd (100 080 kr/år) spiser nesten hele avkastningen",
+          "Nettoyield kun 1,24% — under 2,5%-terskelen",
+          "Negativ cashflow -54 431 kr/år og negativ total EK-avkastning",
+          "Eieform Aksje (andelsleilighet) kan gi begrensninger ved utleie/salg",
+          "Samme gate/oppgang som tidligere filtrert annonse (Danvikgata 20B) med lignende høy fellesgjeld-problematikk"
+        ],
+        "positives": [
+          "Bruttoyield 6,89% passerer akkurat terskelen på 6,5%",
+          "Fasade og balkonger rehabilitert i 2021",
+          "Heis og gangavstand til tog",
+          "Sentral beliggenhet i Nybyen/Strømsø"
+        ]
+      }
+    },
+    {
+      "finnkode": "473443258",
+      "finnUrl": "https://www.finn.no/realestate/homes/ad.html?finnkode=473443258",
+      "address": "Arbeidergata 34, 3050 Mjøndalen",
+      "type": "Leilighet",
+      "ownership": "Selveier",
+      "size": 39,
+      "bedrooms": 1,
+      "buildYear": 2009,
+      "askingPrice": 2450000,
+      "totalPrice": 2512640,
+      "commonCosts": 1619,
+      "municipalFees": null,
+      "estMonthlyRent": 11583,
+      "rentPerSqm": 297,
+      "compCount": 16,
+      "lowConfidence": false,
+      "annualGrossRent": 132046,
+      "annualOwnerCosts": 40671,
+      "noi": 91375,
+      "bruttoyield": 5.39,
+      "nettoyield": 3.73,
+      "loanAmount": 1837500,
+      "equity": 673750,
+      "annualInterest": 91875,
+      "cashflow": -500,
+      "cashOnCash": -0.07,
+      "annualAppreciation": 42875,
+      "totalReturnAnnual": 42375,
+      "totalReturnEKPct": 6.29,
+      "analyzedAt": "2026-08-21T08:00:00+02:00",
+      "ai": {
+        "priceVsArea": "62 821 kr/m² for 39 m² i Mjøndalen sentrum er høyt for en så liten leilighet, men reflekterer full renovering (nytt kjøkken, ny parkett, flislagt bad) og sentral beliggenhet med heis.",
+        "condition": "Byggeår 2009, men fullstendig oppgradert: ny parkett, nytt kjøkken med nye hvitevarer, flislagt bad/wc, nymalte vegger. Minimalt vedlikeholdsbehov de neste årene.",
+        "location": "Midt i Mjøndalen sentrum, gangavstand til butikker, tog og buss i umiddelbar nærhet. 4. etasje med heis og fransk balkong.",
+        "redFlags": [
+          "Bruttoyield 5,39% er godt under 6,5%-terskelen",
+          "Cashflow tilnærmet null og marginalt negativ (-500 kr/år) — svært liten buffer mot ledighet",
+          "1 soverom for en kompakt 39 m² leilighet begrenser leietakerbasen noe"
+        ],
+        "positives": [
+          "Nyoppusset: nytt kjøkken, ny parkett og flislagt bad — lavt vedlikeholdsbehov",
+          "Heis, sentral beliggenhet med gangavstand til tog, buss og butikker",
+          "Nettoyield 3,73% passerer terskelen på 2,5% komfortabelt",
+          "Lav inngangspris (2 450 000 kr) gjør investeringen tilgjengelig"
+        ]
+      }
+    },
+    {
+      "finnkode": "473984030",
+      "finnUrl": "https://www.finn.no/realestate/homes/ad.html?finnkode=473984030",
+      "address": "Skoleveien 2, 3055 Krokstadelva",
+      "type": "Leilighet",
+      "ownership": "Selveier",
+      "size": 81,
+      "bedrooms": 2,
+      "buildYear": 2015,
+      "askingPrice": 3950000,
+      "totalPrice": 4049840,
+      "commonCosts": 4504,
+      "municipalFees": 3616,
+      "estMonthlyRent": 18387,
+      "rentPerSqm": 227,
+      "compCount": 19,
+      "lowConfidence": false,
+      "annualGrossRent": 209612,
+      "annualOwnerCosts": 72337,
+      "noi": 137275,
+      "bruttoyield": 5.31,
+      "nettoyield": 3.48,
+      "loanAmount": 2962500,
+      "equity": 1086250,
+      "annualInterest": 148125,
+      "cashflow": -10850,
+      "cashOnCash": -1.0,
+      "annualAppreciation": 69125,
+      "totalReturnAnnual": 58275,
+      "totalReturnEKPct": 5.36,
+      "analyzedAt": "2026-08-21T08:00:00+02:00",
+      "ai": {
+        "priceVsArea": "48 765 kr/m² for 81 m² topp-leilighet i Krokstadelva er moderat, med garasje, gulvvarme og balkong som forsvarer prisnivået.",
+        "condition": "Byggeår 2015 — moderne standard med vannbåren gulvvarme i stue/kjøkken, balansert ventilasjon, flislagt bad. Lavt vedlikeholdsbehov de neste 10+ år.",
+        "location": "Krokstadelva, 1 min til buss, 18 min til jernbane. 4 min til dagligvare, 6 min til kjøpesenter. Fast garasjeplass i felles anlegg.",
+        "redFlags": [
+          "Bruttoyield 5,31% er under 6,5%-terskelen",
+          "Felleskost 4 504 kr/mnd (54 048 kr/år) er høyt og reduserer nettoavkastningen betydelig",
+          "Negativ cashflow -10 850 kr/år ved 75% belåning",
+          "18 min til jernbane — noe avhengig av buss for pendlere"
+        ],
+        "positives": [
+          "Nettoyield 3,48% passerer terskelen på 2,5% godt",
+          "Byggeår 2015 med vannbåren gulvvarme og balansert ventilasjon — lavt vedlikehold",
+          "Fast garasjeplass inkludert — sjelden fordel",
+          "2 soverom og 2 boder gir god lagringsplass og bred leietakerbase",
+          "1 min til buss og 4 min til dagligvare"
+        ]
+      }
+    },
+    {
+      "finnkode": "473974751",
+      "finnUrl": "https://www.finn.no/realestate/homes/ad.html?finnkode=473974751",
+      "address": "Tollbugata 60, 3044 Drammen",
+      "type": "Leilighet",
+      "ownership": "Selveier",
+      "size": 114,
+      "bedrooms": 1,
+      "buildYear": 1800,
+      "askingPrice": 3900000,
+      "totalPrice": 4136580,
+      "commonCosts": 6000,
+      "municipalFees": 9974,
+      "estMonthlyRent": 21660,
+      "rentPerSqm": 190,
+      "compCount": 5,
+      "lowConfidence": false,
+      "annualGrossRent": 246924,
+      "annualOwnerCosts": 99259,
+      "noi": 147665,
+      "bruttoyield": 6.33,
+      "nettoyield": 3.79,
+      "loanAmount": 2925000,
+      "equity": 1072500,
+      "annualInterest": 146250,
+      "cashflow": 1415,
+      "cashOnCash": 0.13,
+      "annualAppreciation": 68250,
+      "totalReturnAnnual": 69665,
+      "totalReturnEKPct": 6.5,
+      "analyzedAt": "2026-08-23T08:00:00+02:00",
+      "ai": {
+        "priceVsArea": "34 211 kr/m² på totalt bruksareal (114 m², hvorav 99 m² BRA-i) er moderat for en sjarmerende toppleilighet i verneverdig bygård fra 1800-tallet på Strømsø.",
+        "condition": "Byggeår 1800 — verneverdig bygård med peis og historisk sjel; kan innebære restriksjoner på endringer og høyere fellesvedlikehold.",
+        "location": "Strømsø, sentralt i Drammen, gangavstand til sentrum.",
+        "redFlags": [
+          "Bruttoyield 6,33% er akkurat under terskelen på 6,5% — kun nettoyield passerer",
+          "Byggeår 1800, verneverdig bygning — kan gi restriksjoner på endringer og høyere fellesvedlikehold",
+          "Fellesgjeld 134 640 kr",
+          "Kun 1 soverom begrenser leietakerbase betydelig",
+          "Cashflow tilnærmet null (1 415 kr/år) — svært liten buffer mot ledighet eller renteøkning"
+        ],
+        "positives": [
+          "Nettoyield 3,79% passerer terskelen på 2,5%",
+          "Egen parkeringsplass — sjelden og attraktivt for leietakere",
+          "Stor balkong/veranda og peis gir unik karakter",
+          "Verditakst 4 000 000 kr er over prisantydning 3 900 000 kr",
+          "Sentral beliggenhet på Strømsø, gangavstand til sentrum"
+        ]
+      }
+    },
+    {
+      "finnkode": "473159949",
+      "finnUrl": "https://www.finn.no/realestate/homes/ad.html?finnkode=473159949",
+      "address": "Andreas Borgens gate 3, 3045 Drammen",
+      "type": "Tomannsbolig",
+      "ownership": "Selveier",
+      "size": 78,
+      "bedrooms": 2,
+      "buildYear": 1902,
+      "askingPrice": 3600000,
+      "totalPrice": 3691090,
+      "commonCosts": 0,
+      "municipalFees": 15844,
+      "estMonthlyRent": 18720,
+      "rentPerSqm": 240,
+      "compCount": 23,
+      "lowConfidence": false,
+      "annualGrossRent": 213408,
+      "annualOwnerCosts": 30783,
+      "noi": 182625,
+      "bruttoyield": 5.93,
+      "nettoyield": 5.07,
+      "loanAmount": 2700000,
+      "equity": 990000,
+      "annualInterest": 135000,
+      "cashflow": 47625,
+      "cashOnCash": 4.81,
+      "annualAppreciation": 63000,
+      "totalReturnAnnual": 110625,
+      "totalReturnEKPct": 11.17,
+      "analyzedAt": "2026-08-24T08:00:00+02:00",
+      "ai": {
+        "priceVsArea": "46 154 kr/m² (78 m² BRA, 71 m² BRA-i) er høyt for Nybyen/Gamle Drammen og gir svakere yield-grunnlag enn andre annonser i søket.",
+        "condition": "Byggeår 1902, klassiske detaljer nevnt i tittel — ingen oppgitt oppgraderingshistorikk. Bad, kjøkken, rør og el bør besiktiges nøye før kjøp.",
+        "location": "Nybyen/Gamle Drammen, tilbaketrukket men sentralt beliggende, felles hage og p-plass.",
+        "redFlags": [
+          "Bruttoyield 5,93% er under 6,5%-terskelen — kun nettoyield (5,07%) passerer",
+          "Høy kvm-pris (46 154 kr/m²) for et eldre bygg fra 1902 uten oppgitt oppgraderingshistorikk",
+          "Kun 2 soverom begrenser leietakerbase noe"
+        ],
+        "positives": [
+          "Nettoyield 5,07% er godt over terskelen på 2,5%",
+          "Positiv cashflow (47 625 kr/år, CoC 4,81%) selv med 75% belåning",
+          "P-plass og felles hage inkludert",
+          "23 sammenlignbare leieobjekter i størrelsesintervallet — god datakvalitet"
+        ]
+      }
+    },
+    {
+      "finnkode": "474003025",
+      "finnUrl": "https://www.finn.no/realestate/homes/ad.html?finnkode=474003025",
+      "address": "Eikebakken 8, 3055 Krokstadelva",
+      "type": "Enebolig",
+      "ownership": "Selveier",
+      "size": 115,
+      "bedrooms": 3,
+      "buildYear": 1947,
+      "askingPrice": 3900000,
+      "totalPrice": 3998590,
+      "commonCosts": 0,
+      "municipalFees": 11764,
+      "estMonthlyRent": 19205,
+      "rentPerSqm": 167,
+      "compCount": 5,
+      "lowConfidence": false,
+      "annualGrossRent": 218937,
+      "annualOwnerCosts": 27090,
+      "noi": 191847,
+      "bruttoyield": 5.61,
+      "nettoyield": 4.92,
+      "loanAmount": 2925000,
+      "equity": 1072500,
+      "annualInterest": 146250,
+      "cashflow": 45597,
+      "cashOnCash": 4.25,
+      "annualAppreciation": 68250,
+      "totalReturnAnnual": 113847,
+      "totalReturnEKPct": 10.62,
+      "analyzedAt": "2026-08-24T08:00:00+02:00",
+      "ai": {
+        "priceVsArea": "33 913 kr/m² for 115 m² enebolig i Krokstadelva er moderat — verditakst matcher prisantydning nøyaktig, som indikerer fair pricing.",
+        "condition": "Byggeår 1947, ingen oppgitt oppgraderingshistorikk — bad, kjøkken, rør og el bør besiktiges. Peis og garasje/p-plass inkludert.",
+        "location": "Krokstadelva, barnevennlig strøk, solrik tomt på 904 m² (eiet), 29 m² terrasse.",
+        "redFlags": [
+          "Bruttoyield 5,61% er under 6,5%-terskelen — kun nettoyield (4,92%) passerer",
+          "Kun 5 sammenlignbare leieobjekter i størrelsesintervallet — noe tynt datagrunnlag til tross for at lowConfidence-formelen ikke slår ut",
+          "Byggeår 1947 uten oppgitt oppgraderingshistorikk"
+        ],
+        "positives": [
+          "Nettoyield 4,92% er godt over terskelen på 2,5%",
+          "Verditakst 3 900 000 kr matcher prisantydning nøyaktig — fair pricing",
+          "Positiv cashflow (45 597 kr/år, CoC 4,25%)",
+          "Stor eiet tomt 904 m², solrik beliggenhet, peis og garasje"
+        ]
+      }
+    },
+    {
+      "finnkode": "474471950",
+      "finnUrl": "https://www.finn.no/realestate/homes/ad.html?finnkode=474471950",
+      "address": "Engene 115A, 3011 Drammen",
+      "type": "Leilighet",
+      "ownership": "Selveier",
+      "size": 72,
+      "bedrooms": 2,
+      "buildYear": 2012,
+      "askingPrice": 3750000,
+      "totalPrice": 3844840,
+      "commonCosts": 5348,
+      "municipalFees": 15265,
+      "estMonthlyRent": 18000,
+      "rentPerSqm": 250,
+      "compCount": 23,
+      "lowConfidence": false,
+      "annualGrossRent": 205200,
+      "annualOwnerCosts": 93805,
+      "noi": 111395,
+      "bruttoyield": 5.47,
+      "nettoyield": 2.97,
+      "loanAmount": 2812500,
+      "equity": 1031250,
+      "annualInterest": 140625,
+      "cashflow": -29230,
+      "cashOnCash": -2.83,
+      "annualAppreciation": 65625,
+      "totalReturnAnnual": 36395,
+      "totalReturnEKPct": 3.53,
+      "analyzedAt": "2026-08-25T08:00:00+02:00",
+      "ai": {
+        "priceVsArea": "52 083 kr/m² for 72 m² i Gamle Drammen (Engene) er høyt, men reflekterer helt nye overflater (oppgitt fra 2026) og 2 parkeringsplasser.",
+        "condition": "Byggeår 2012, overflater oppgradert (oppgitt fra 2026) — lavt vedlikeholdsbehov de neste årene.",
+        "location": "Engene, Gamle Drammen — sentralt men tilbaketrukket, pendlervennlig.",
+        "redFlags": [
+          "Bruttoyield 5,47% er under 6,5%-terskelen — kun nettoyield passerer (borderline)",
+          "Negativ cashflow -29 230 kr/år ved 75% belåning",
+          "Høy felleskost 5 348 kr/mnd trekker ned nettoavkastningen betydelig"
+        ],
+        "positives": [
+          "Nettoyield 2,97% passerer terskelen på 2,5%",
+          "Helt nye overflater og moderne planløsning",
+          "2 parkeringsplasser inkludert — sjeldent og attraktivt for leietakere",
+          "Sentral men tilbaketrukket beliggenhet i Gamle Drammen"
+        ]
+      }
+    },
+    {
+      "finnkode": "474643421",
+      "finnUrl": "https://www.finn.no/realestate/homes/ad.html?finnkode=474643421",
+      "address": "Arbeidergata 32, 3050 Mjøndalen",
+      "type": "Leilighet",
+      "ownership": "Selveier",
+      "size": 66,
+      "bedrooms": 1,
+      "buildYear": 2002,
+      "askingPrice": 2990000,
+      "totalPrice": 3091451,
+      "commonCosts": 3768,
+      "municipalFees": 8245,
+      "estMonthlyRent": 16500,
+      "rentPerSqm": 250,
+      "compCount": 24,
+      "lowConfidence": false,
+      "annualGrossRent": 188100,
+      "annualOwnerCosts": 66628,
+      "noi": 121472,
+      "bruttoyield": 6.29,
+      "nettoyield": 4.06,
+      "loanAmount": 2242500,
+      "equity": 822250,
+      "annualInterest": 112125,
+      "cashflow": 9347,
+      "cashOnCash": 1.14,
+      "annualAppreciation": 52325,
+      "totalReturnAnnual": 61672,
+      "totalReturnEKPct": 7.5,
+      "analyzedAt": "2026-08-27T08:00:00+02:00",
+      "ai": {
+        "priceVsArea": "45 303 kr/m² på totalt bruksareal (66 m², hvorav 61 m² BRA-i) er moderat for Mjøndalen sentrum — opprinnelig 3-roms ombygd til 2-roms.",
+        "condition": "Byggeår 2002, ingen oppgitt oppgraderingshistorikk i utdraget — bad, kjøkken og rør bør besiktiges.",
+        "location": "Mjøndalen sentrum, heisadkomst og garasje inkludert.",
+        "redFlags": [
+          "Bruttoyield 6,29% mangler 0,21 pp for full match — kun nettoyield passerer",
+          "Fellesgjeld 25 611 kr øker reell kjøpesum noe",
+          "Opprinnelig 3-roms ombygd til 2-roms (1 soverom) kan begrense leietakerbasen noe"
+        ],
+        "positives": [
+          "Nettoyield 4,06% passerer terskelen på 2,5% komfortabelt",
+          "Heisadkomst og garasje inkludert — attraktivt for leietakere",
+          "Sentral beliggenhet i Mjøndalen sentrum",
+          "Positiv cashflow 9 347 kr/år, om enn beskjeden",
+          "Byggeår 2002 — moderne standard, lavt vedlikeholdsbehov"
+        ]
+      }
+    },
+    {
+      "finnkode": "474558954",
+      "finnUrl": "https://www.finn.no/realestate/homes/ad.html?finnkode=474558954",
+      "address": "Sikoriveien 9, 3050 Mjøndalen",
+      "type": "Tomannsbolig",
+      "ownership": "Selveier",
+      "size": 113,
+      "bedrooms": 3,
+      "buildYear": 2002,
+      "askingPrice": 3500000,
+      "totalPrice": 3588590,
+      "commonCosts": 0,
+      "municipalFees": 11232,
+      "estMonthlyRent": 19775,
+      "rentPerSqm": 175,
+      "compCount": 7,
+      "lowConfidence": false,
+      "annualGrossRent": 225435,
+      "annualOwnerCosts": 27012,
+      "noi": 198423,
+      "bruttoyield": 6.44,
+      "nettoyield": 5.67,
+      "loanAmount": 2625000,
+      "equity": 962500,
+      "annualInterest": 131250,
+      "cashflow": 67173,
+      "cashOnCash": 6.98,
+      "annualAppreciation": 61250,
+      "totalReturnAnnual": 128423,
+      "totalReturnEKPct": 13.34,
+      "analyzedAt": "2026-08-27T08:00:00+02:00",
+      "ai": {
+        "priceVsArea": "30 973 kr/m² for 113 m² halvpart av tomannsbolig i Åsen, Mjøndalen er lavt, gitt stor eiet tomt på 4 442 m².",
+        "condition": "Byggeår 2002, ingen oppgitt oppgraderingshistorikk — bad, kjøkken og rør bør besiktiges før kjøp.",
+        "location": "Åsen i Mjøndalen, rolig og markanært, kort vei til skole/barnehage — familievennlig.",
+        "redFlags": [
+          "Bruttoyield 6,44% mangler kun 0,06 pp for full match — marginalt under terskel",
+          "Byggeår 2002 uten oppgitt oppgraderingshistorikk, nærmer seg 25 år",
+          "Kun 7 komparable i det snevre størrelsesintervallet — noe begrenset datagrunnlag"
+        ],
+        "positives": [
+          "Nettoyield 5,67% passerer terskelen på 2,5% komfortabelt",
+          "Stor eiet tomt 4 442 m²",
+          "3 soverom gir bred leietakerbase",
+          "Cashflow 67 173 kr/år (CoC 6,98%) — solid resultat",
+          "Rolig, familievennlig område med kort vei til skole/barnehage"
+        ]
+      }
+    },
+    {
+      "finnkode": "452503997",
+      "finnUrl": "https://www.finn.no/realestate/homes/ad.html?finnkode=452503997",
+      "address": "Båtbyggerveien 19, 3057 Solbergelva",
+      "type": "Rekkehus",
+      "ownership": "Selveier",
+      "size": 80,
+      "bedrooms": 2,
+      "buildYear": 1992,
+      "askingPrice": 3490000,
+      "totalPrice": 3622389,
+      "commonCosts": 4766,
+      "municipalFees": 6662,
+      "estMonthlyRent": 18400,
+      "rentPerSqm": 230,
+      "compCount": 21,
+      "lowConfidence": false,
+      "annualGrossRent": 209760,
+      "annualOwnerCosts": 78537,
+      "noi": 131223,
+      "bruttoyield": 6.01,
+      "nettoyield": 3.76,
+      "loanAmount": 2617500,
+      "equity": 959750,
+      "annualInterest": 130875,
+      "cashflow": 348,
+      "cashOnCash": 0.04,
+      "annualAppreciation": 61075,
+      "totalReturnAnnual": 61423,
+      "totalReturnEKPct": 6.4,
+      "analyzedAt": "2026-08-28T08:00:00+02:00",
+      "ai": {
+        "priceVsArea": "43 625 kr/m² for 80 m² rekkehusleilighet i Solbergelva er moderat, med garasje og oppgradert kjøkken som forsvarer prisnivået.",
+        "condition": "Byggeår 1992, kjøkken fornyet i 2023, peis. Alt på ett plan — lavt vedlikeholdsbehov utover normal slitasje.",
+        "location": "Solbergelva, rolig og barnevennlig nabolag. Stor terrasse og garasje.",
+        "redFlags": [
+          "Bruttoyield 6,01% er under 6,5%-terskelen — kun nettoyield passerer (borderline)",
+          "Cashflow tilnærmet null (348 kr/år) — ingen buffer mot ledighet eller renteøkning",
+          "Felleskost 4 766 kr/mnd (57 192 kr/år) er en betydelig løpende kostnad"
+        ],
+        "positives": [
+          "Nettoyield 3,76% passerer terskelen på 2,5% komfortabelt",
+          "Kjøkken fornyet i 2023 og peis gir lavt vedlikeholdsbehov",
+          "Garasje og stor terrasse inkludert",
+          "21 sammenlignbare leieobjekter i størrelsesintervallet — god datakvalitet"
+        ]
+      }
+    }
+  ],
+  "filtered": [
+    {
+      "finnkode": "436536655",
+      "finnUrl": "https://www.finn.no/realestate/homes/ad.html?finnkode=436536655",
+      "address": "Hegsbroveien 76B, 3403 Lier",
+      "type": "Leilighet",
+      "ownership": "Selveier",
+      "size": 52,
+      "bedrooms": 1,
+      "buildYear": 2021,
+      "askingPrice": 3600000,
+      "totalPrice": 3691380,
+      "commonCosts": 3681,
+      "municipalFees": 7854,
+      "estMonthlyRent": 13000,
+      "rentPerSqm": 250,
+      "compCount": 42,
+      "lowConfidence": false,
+      "annualGrossRent": 148200,
+      "annualOwnerCosts": 62400,
+      "noi": 85800,
+      "bruttoyield": 4.12,
+      "nettoyield": 2.38,
+      "loanAmount": 2700000,
+      "equity": 990000,
+      "annualInterest": 135000,
+      "cashflow": -49200,
+      "cashOnCash": -4.97,
+      "annualAppreciation": 63000,
+      "totalReturnAnnual": 13800,
+      "totalReturnEKPct": 1.39,
+      "analyzedAt": "2026-06-25T11:01:00+02:00",
+      "ai": {
+        "priceVsArea": "69 231 kr/m² for 52 m² nyere leilighet i Lierbyen er nær Oslo-prisnivå. Byggeår 2021 og garasje er positivt, men prisnivå gir ikke rom for yield.",
+        "condition": "Byggeår 2021 — moderne standard, balansert ventilasjon, garasje m/lader, vannbåren varme inkl. i felleskost. Lavt vedlikeholdsbehov de neste 10-15 år.",
+        "location": "Lierbyen, 4 min til buss, ingen togstasjon nevnt. Dagligvare 4 min. Nær E18. Rolig og sentralt i Lier.",
+        "redFlags": [
+          "Ingen jernbanestasjon i gangavstand — busavhengig pendling",
+          "Felleskost 3 681 kr/mnd (inkl. vannbåren varme) er relativt høyt",
+          "Bruttoyield 4.12% og nettoyield 2.38% — begge under terskel",
+          "Negativ cashflow -49 200 kr/år"
+        ],
+        "positives": [
+          "Byggeår 2021 — null vedlikeholdsbehov",
+          "Garasje m/el-lader inkludert",
+          "Balansert ventilasjon og vannbåren varme",
+          "Heis, takterrasse og flotte fellesarealer"
+        ]
+      }
+    },
+    {
+      "finnkode": "450888832",
+      "finnUrl": "https://www.finn.no/realestate/homes/ad.html?finnkode=450888832",
+      "address": "Peder Søbergs gate 26A, 3045 Drammen",
+      "type": "Leilighet",
+      "ownership": "Selveier",
+      "size": 60,
+      "bedrooms": 2,
+      "buildYear": 1989,
+      "askingPrice": 3490000,
+      "totalPrice": 3658750,
+      "commonCosts": 4841,
+      "municipalFees": 15098,
+      "estMonthlyRent": 15000,
+      "rentPerSqm": 250,
+      "compCount": 42,
+      "lowConfidence": false,
+      "annualGrossRent": 171000,
+      "annualOwnerCosts": 85160,
+      "noi": 85840,
+      "bruttoyield": 4.9,
+      "nettoyield": 2.46,
+      "loanAmount": 2617500,
+      "equity": 959750,
+      "annualInterest": 130875,
+      "cashflow": -45035,
+      "cashOnCash": -4.69,
+      "annualAppreciation": 61075,
+      "totalReturnAnnual": 16040,
+      "totalReturnEKPct": 1.67,
+      "analyzedAt": "2026-06-25T11:01:00+02:00",
+      "ai": {
+        "priceVsArea": "58 167 kr/m² for 60 m² 3-roms på Nybyen/Strømsø er høyt. Fellesgjeld 78 460 kr og felleskost 4 841 kr/mnd spiser inn på yield.",
+        "condition": "Byggeår 1989. Sameiet bytter vinduer og ytterdør 2026 — positivt for teknisk tilstand. For øvrig ingen nylige oppgraderinger nevnt.",
+        "location": "Nybyen/Strømsø, 12 min til jernbane, 4 min til buss. Dagligvare 3 min. 2. etasje med balkong.",
+        "redFlags": [
+          "Felleskost 4 841 kr/mnd (58 092 kr/år) er høyt og spiser marginen",
+          "Fellesgjeld 78 460 kr — reell kostnad 3 659 000 kr",
+          "Bruttoyield 4.90% og nettoyield 2.46% — begge under terskel",
+          "Negativ cashflow -45 035 kr/år"
+        ],
+        "positives": [
+          "2 soverom — bred leietakerbase",
+          "Vinduer og ytterdør byttes 2026",
+          "Parkering m/lademulighet inkludert",
+          "Heis og vaskerom",
+          "Dagligvare 3 min"
+        ]
+      }
+    },
+    {
+      "finnkode": "450753862",
+      "finnUrl": "https://www.finn.no/realestate/homes/ad.html?finnkode=450753862",
+      "address": "Engene 104, 3012 Drammen",
+      "type": "Leilighet",
+      "ownership": "Selveier",
+      "size": 41,
+      "bedrooms": 1,
+      "buildYear": 2017,
+      "askingPrice": 2990000,
+      "totalPrice": 3065840,
+      "commonCosts": 2930,
+      "municipalFees": 7000,
+      "estMonthlyRent": 8651,
+      "rentPerSqm": 211,
+      "compCount": 49,
+      "lowConfidence": false,
+      "annualGrossRent": 98621,
+      "annualOwnerCosts": 49063,
+      "noi": 49558,
+      "bruttoyield": 3.3,
+      "nettoyield": 1.66,
+      "loanAmount": 2242500,
+      "equity": 822250,
+      "annualInterest": 112125,
+      "cashflow": -62567,
+      "cashOnCash": -7.61,
+      "annualAppreciation": 52325,
+      "totalReturnAnnual": -10242,
+      "totalReturnEKPct": -1.25,
+      "analyzedAt": "2026-06-26T08:30:00+02:00",
+      "ai": {
+        "priceVsArea": "72 927 kr/m² for 41 m² på Brakerøya er nærmest Oslo-sentrum-prisnivå. Godt under 50 kr/m² er sjeldent for byggeår 2017 i slike strøk.",
+        "condition": "Byggeår 2017 — balansert ventilasjon, heis, trappefri adkomst. God teknisk stand med lavt vedlikeholdsbehov de neste 10+ år.",
+        "location": "Brakerøya, 1 min til buss, 8-10 min til jernbane. 35% unge voksne — god utleiebase. Nær sykehuset, dagligvare 1 min. Sydvendt veranda.",
+        "redFlags": [
+          "72 927 kr/m² — nær Oslo-sentrum-prisnivå for Brakerøya",
+          "Bruttoyield 3.30% og nettoyield 1.66% — begge godt under terskel",
+          "Felleskost 2 930 kr/mnd (35 160 kr/år)",
+          "Negativ cashflow -62 567 kr/år"
+        ],
+        "positives": [
+          "Byggeår 2017 — balansert ventilasjon og moderne standard",
+          "Heis og trappefri adkomst",
+          "35% unge voksne i nabolaget",
+          "Dagligvare 1 min — beste hverdagslogistikk",
+          "Sydvendt veranda"
+        ]
+      }
+    },
+    {
+      "finnkode": "465034441",
+      "finnUrl": "https://www.finn.no/realestate/homes/ad.html?finnkode=465034441",
+      "address": "Tord Pedersens gate 83B, 3014 Drammen",
+      "type": "Leilighet",
+      "ownership": "Selveier",
+      "size": 52,
+      "bedrooms": 1,
+      "buildYear": 1973,
+      "askingPrice": 3650000,
+      "totalPrice": 3975745,
+      "commonCosts": 5807,
+      "municipalFees": 0,
+      "estMonthlyRent": 10972,
+      "rentPerSqm": 211,
+      "compCount": 49,
+      "lowConfidence": false,
+      "annualGrossRent": 125081,
+      "annualOwnerCosts": 78440,
+      "noi": 46641,
+      "bruttoyield": 3.43,
+      "nettoyield": 1.28,
+      "loanAmount": 2737500,
+      "equity": 1003750,
+      "annualInterest": 136875,
+      "cashflow": -90234,
+      "cashOnCash": -8.99,
+      "annualAppreciation": 63875,
+      "totalReturnAnnual": -26359,
+      "totalReturnEKPct": -2.63,
+      "analyzedAt": "2026-06-26T08:30:00+02:00",
+      "ai": {
+        "priceVsArea": "70 192 kr/m² (inkl. fellesgjeld 227 735 kr → 74 577 kr/m²) er Oslo-sentrum-prisnivå. Felleskost 5 807 kr/mnd spiser bort all cashflow.",
+        "condition": "Bad renovert 2026 (sameiet). Kjøkken 2019 med integrerte hvitevarer. Heis og vinduer byttet. Fjernvarme inkl. i felleskost. God teknisk stand.",
+        "location": "Strøtvet, 2 min til buss, 8 min til jernbane. 10. etasje med fjordutsikt. Marka like ved. Dagligvare 12 min — bilavhengig.",
+        "redFlags": [
+          "70 192 kr/m² + fellesgjeld → 74 577 kr/m² inkl. gjeld — Oslo-prisnivå",
+          "Felleskost 5 807 kr/mnd (69 684 kr/år) er svært høyt for 52 m²",
+          "Bruttoyield 3.43% og nettoyield 1.28% — begge godt under terskel",
+          "Negativ cashflow -90 234 kr/år"
+        ],
+        "positives": [
+          "Bad renovert 2026 av sameiet",
+          "Kjøkken 2019",
+          "10. etasje med fjordutsikt — premium opplevelse",
+          "Fjernvarme og kommunale avg. inkl. i felleskost",
+          "8 min til jernbane"
+        ]
+      }
+    },
+    {
+      "finnkode": "467144422",
+      "finnUrl": "https://www.finn.no/realestate/homes/ad.html?finnkode=467144422",
+      "address": "Skogliveien 190B, 3047 Drammen",
+      "type": "Leilighet",
+      "ownership": "Selveier",
+      "size": 59,
+      "bedrooms": 1,
+      "buildYear": 2017,
+      "askingPrice": 3600000,
+      "totalPrice": 3725852,
+      "commonCosts": 3287,
+      "municipalFees": 7952,
+      "estMonthlyRent": 12449,
+      "rentPerSqm": 211,
+      "compCount": 49,
+      "lowConfidence": false,
+      "annualGrossRent": 141919,
+      "annualOwnerCosts": 57330,
+      "noi": 84589,
+      "bruttoyield": 3.94,
+      "nettoyield": 2.35,
+      "loanAmount": 2700000,
+      "equity": 990000,
+      "annualInterest": 135000,
+      "cashflow": -50411,
+      "cashOnCash": -5.09,
+      "annualAppreciation": 63000,
+      "totalReturnAnnual": 12589,
+      "totalReturnEKPct": 1.27,
+      "analyzedAt": "2026-06-26T08:30:00+02:00",
+      "ai": {
+        "priceVsArea": "61 017 kr/m² for 59 m² nyere leilighet i småhus på Gulskogen er høyt. Byggeår 2017 og carport/peis er positivt, men prisnivå gir ikke rom for yield.",
+        "condition": "Byggeår 2017 — moderne standard, peis, parkett, carport. Lavt vedlikeholdsbehov de neste 10+ år. Ingen fellesgjeld.",
+        "location": "Gulskogen, 7 min til buss, 15 min til jernbane. Dagligvare 14 min og kjøpesenter 14 min — bilavhengig hverdagslogistikk. Nær tur- og rekreasjonsområder.",
+        "redFlags": [
+          "61 017 kr/m² er for høyt for yield-investering på Gulskogen",
+          "Bruttoyield 3.94% og nettoyield 2.35% — begge under terskel",
+          "Felleskost 3 287 kr/mnd (39 444 kr/år)",
+          "15 min til jernbane",
+          "Dagligvare 14 min gange — bilavhengig"
+        ],
+        "positives": [
+          "Byggeår 2017 — god teknisk stand og lavt vedlikeholdsbehov",
+          "Carport og peis",
+          "Rolig nabolag med turterreng",
+          "Ingen fellesgjeld"
+        ]
+      }
+    },
+    {
+      "finnkode": "469459633",
+      "finnUrl": "https://www.finn.no/realestate/homes/ad.html?finnkode=469459633",
+      "address": "Underlia 51, 3021 Drammen",
+      "type": "Leilighet",
+      "ownership": "Selveier",
+      "size": 37,
+      "bedrooms": 1,
+      "buildYear": 1970,
+      "askingPrice": 2390000,
+      "totalPrice": 2575469,
+      "commonCosts": 3250,
+      "municipalFees": null,
+      "estMonthlyRent": 10360,
+      "rentPerSqm": 280,
+      "compCount": 50,
+      "lowConfidence": false,
+      "annualGrossRent": 118104,
+      "annualOwnerCosts": 59267,
+      "noi": 58837,
+      "bruttoyield": 4.94,
+      "nettoyield": 2.46,
+      "loanAmount": 1792500,
+      "equity": 657250,
+      "annualInterest": 89625,
+      "cashflow": -30788,
+      "cashOnCash": -4.68,
+      "annualAppreciation": 41825,
+      "totalReturnAnnual": 11037,
+      "totalReturnEKPct": 1.68,
+      "analyzedAt": "2026-07-11T08:00:00+02:00",
+      "ai": {
+        "priceVsArea": "64 595 kr/m² for en liten 37 m² 2-roms i Underlia er høyt for en kompakt leilighet, selv med oppussing i 2018.",
+        "condition": "Oppusset i 2018 gir moderne standard for en mindre investering, men byggeår 1970 og ukjent teknisk tilstand utenom oppussingen.",
+        "location": "Underlia i Drammen har kort vei til marka og sentrum — attraktivt for naturinteresserte, men noe perifert for pendlermarkedet.",
+        "redFlags": [
+          "Bruttoyield 4,94% og nettoyield 2,46% ligger begge under terskelen (6,5%/2,5%)",
+          "Felleskost 3 250 kr/mnd er høyt for en 37 m² leilighet og spiser mye av avkastningen",
+          "Fellesgjeld 121 609 kr — reell totalpris 2 575 469 kr"
+        ],
+        "positives": [
+          "Oppusset i 2018 — lavt umiddelbart vedlikeholdsbehov",
+          "Balkong med morgensol",
+          "Kort vei til marka og sentrum"
+        ]
+      }
+    },
+    {
+      "finnkode": "450902518",
+      "finnUrl": "https://www.finn.no/realestate/homes/ad.html?finnkode=450902518",
+      "address": "Gamle Kirkeplass 4, 3019 Drammen",
+      "type": "Leilighet",
+      "ownership": "Selveier",
+      "size": 50,
+      "bedrooms": 1,
+      "buildYear": 1995,
+      "askingPrice": 2950000,
+      "totalPrice": 3024990,
+      "commonCosts": 5366,
+      "municipalFees": null,
+      "estMonthlyRent": 13050,
+      "rentPerSqm": 261,
+      "compCount": 47,
+      "lowConfidence": false,
+      "annualGrossRent": 148770,
+      "annualOwnerCosts": 86806,
+      "noi": 61964,
+      "bruttoyield": 5.04,
+      "nettoyield": 2.1,
+      "loanAmount": 2212500,
+      "equity": 811250,
+      "annualInterest": 110625,
+      "cashflow": -48661,
+      "cashOnCash": -6.0,
+      "annualAppreciation": 51625,
+      "totalReturnAnnual": 2964,
+      "totalReturnEKPct": 0.37,
+      "analyzedAt": "2026-08-10T08:00:00+02:00",
+      "ai": {
+        "priceVsArea": "59 000 kr/m² (50 m² BRA, 46 m² BRA-i) er høyt og reflekterer supersentral beliggenhet på Bragernes.",
+        "condition": "Byggeår 1995, ingen oppgitt nylig oppgradering i utdraget.",
+        "location": "Bragernes sentrum — kort gange til kollektivt og sentrum, svært sentral beliggenhet.",
+        "redFlags": [
+          "Både bruttoyield (5,04%) og nettoyield (2,10%) er under terskel — filtrert",
+          "Felleskost 5 366 kr/mnd (64 392 kr/år) er høyt for en 50 m² leilighet og spiser mye av avkastningen",
+          "Negativ cashflow (-48 661 kr/år) ved 75% belåning",
+          "Kun 1 soverom begrenser leietakerbasen"
+        ],
+        "positives": [
+          "Svært sentral beliggenhet, kort vei til kollektivt og sentrum",
+          "Lav inngangspris (2 950 000 kr) blant nyeste annonser"
+        ]
+      }
+    },
+    {
+      "finnkode": "473607310",
+      "finnUrl": "https://www.finn.no/realestate/homes/ad.html?finnkode=473607310",
+      "address": "Rynnings gate 4I, 3045 Drammen",
+      "type": "Leilighet",
+      "ownership": "Selveier",
+      "size": 42,
+      "bedrooms": 1,
+      "buildYear": 1939,
+      "askingPrice": 2790000,
+      "totalPrice": 2870947,
+      "commonCosts": 3294,
+      "municipalFees": null,
+      "estMonthlyRent": 11298,
+      "rentPerSqm": 269,
+      "compCount": 45,
+      "lowConfidence": false,
+      "annualGrossRent": 128797,
+      "annualOwnerCosts": 60544,
+      "noi": 68253,
+      "bruttoyield": 4.62,
+      "nettoyield": 2.45,
+      "loanAmount": 2092500,
+      "equity": 767250,
+      "annualInterest": 104625,
+      "cashflow": -36372,
+      "cashOnCash": -4.74,
+      "annualAppreciation": 48825,
+      "totalReturnAnnual": 12453,
+      "totalReturnEKPct": 1.62,
+      "analyzedAt": "2026-08-17T08:00:00+02:00",
+      "ai": {
+        "priceVsArea": "66 429 kr/m² for 42 m² i Nybyen er høyt prisnivå, drevet av sentral beliggenhet og oppussing i 2021. Liten leilighet med kun 1 soverom begrenser leieinntektspotensialet i forhold til prisen.",
+        "condition": "Byggeår 1939, men oppusset 2021 med vannbåren varme. Ingen TG3-avvik oppgitt — god teknisk stand for alderen. Toppetasje i bygget.",
+        "location": "Nybyen/Gamle Drammen, sentral bydel nær sentrum. Godt egnet for førstegangskjøpere og pendlere.",
+        "redFlags": [
+          "Bruttoyield kun 4,62% og nettoyield 2,45% — begge under terskelen på hhv. 6,5% og 2,5%",
+          "Negativ cashflow (-36 372 kr/år) ved 75% belåning — krever egenkapitaltilskudd hvert år",
+          "Høy kvm-pris (66 429 kr/m²) i forhold til liten leilighetsstørrelse begrenser oppside på utleie"
+        ],
+        "positives": [
+          "Oppusset 2021 med vannbåren varme — lavt vedlikeholdsbehov",
+          "Sentral beliggenhet i Nybyen, kort vei til sentrum",
+          "Ingen TG3-avvik i tilstandsrapport"
+        ]
+      }
+    },
+    {
+      "finnkode": "430983945",
+      "finnUrl": "https://www.finn.no/realestate/homes/ad.html?finnkode=430983945",
+      "address": "Danvikgata 20B, 3045 Drammen",
+      "type": "Leilighet",
+      "ownership": "Aksje",
+      "size": 46,
+      "bedrooms": 1,
+      "buildYear": 1968,
+      "askingPrice": 2180000,
+      "totalPrice": 2996558,
+      "commonCosts": 8340,
+      "municipalFees": 12000,
+      "estMonthlyRent": 12144,
+      "rentPerSqm": 264,
+      "compCount": 46,
+      "lowConfidence": false,
+      "annualGrossRent": 138442,
+      "annualOwnerCosts": 121771,
+      "noi": 16671,
+      "bruttoyield": 6.35,
+      "nettoyield": 0.76,
+      "loanAmount": 1635000,
+      "equity": 599500,
+      "annualInterest": 81750,
+      "cashflow": -65079,
+      "cashOnCash": -10.86,
+      "annualAppreciation": 38150,
+      "totalReturnAnnual": -26929,
+      "totalReturnEKPct": -4.49,
+      "analyzedAt": "2026-08-19T08:00:00+02:00",
+      "ai": {
+        "priceVsArea": "Lav prisantydning (2 180 000 kr) men svært høy fellesgjeld (810 263 kr) gir reell totalpris 2 996 558 kr, dvs. 65 142 kr/m² reelt for 46 m² i Nybyen.",
+        "condition": "Byggeår 1968, heis. Ingen oppgitt oppgraderingshistorikk i utdraget.",
+        "location": "Strømsø-Nybyen, rolig og sentral beliggenhet, gangavstand til tog.",
+        "redFlags": [
+          "Svært høy fellesgjeld 810 263 kr og felleskost 8 340 kr/mnd spiser hele avkastningen",
+          "Bruttoyield 6,35% og nettoyield kun 0,76% — nettoyield godt under terskel",
+          "Eieform Aksje kan gi begrensninger ved utleie/salg"
+        ],
+        "positives": [
+          "Gangavstand til tog",
+          "Heis og balkong"
+        ]
+      }
+    },
+    {
+      "finnkode": "474150996",
+      "finnUrl": "https://www.finn.no/realestate/homes/ad.html?finnkode=474150996",
+      "address": "Underlia 51, 3021 Drammen",
+      "type": "Leilighet",
+      "ownership": "Selveier",
+      "size": 33,
+      "bedrooms": 1,
+      "buildYear": 1970,
+      "askingPrice": 2390000,
+      "totalPrice": 2573796,
+      "commonCosts": 3250,
+      "municipalFees": 12000,
+      "estMonthlyRent": 9900,
+      "rentPerSqm": 300,
+      "compCount": 7,
+      "lowConfidence": false,
+      "annualGrossRent": 112860,
+      "annualOwnerCosts": 58900,
+      "noi": 53960,
+      "bruttoyield": 4.72,
+      "nettoyield": 2.26,
+      "loanAmount": 1792500,
+      "equity": 657250,
+      "annualInterest": 89625,
+      "cashflow": -35665,
+      "cashOnCash": -5.43,
+      "annualAppreciation": 41825,
+      "totalReturnAnnual": 6160,
+      "totalReturnEKPct": 0.94,
+      "analyzedAt": "2026-08-22T18:59:57+02:00",
+      "ai": {
+        "priceVsArea": "77 994 kr/m² (33 m² BRA) er høyt, drevet av 6. etasje med balkong og oppussing i 2018 nær marka og sentrum.",
+        "condition": "Byggeår 1970, oppusset i 2018 — lavt umiddelbart vedlikeholdsbehov.",
+        "location": "Kort vei til marka og sentrum i Drammen — attraktivt for pendlere og studenter.",
+        "redFlags": [
+          "Bruttoyield kun 4,72% og nettoyield 2,26% — begge under terskelverdiene (6,5%/2,5%)",
+          "Negativ cashflow (-35 665 kr/år) etter renter — krever årlig kapitaltilførsel fra eier",
+          "Felleskost 3 250 kr/mnd er høyt relativt til boligens størrelse (98 kr/m²/mnd)",
+          "Kun 1 soverom (liten 2-roms) begrenser leietakerbase noe",
+          "Samme adresse/gate som tidligere filtrerte objekter (finnkode 469459633) — kjent lav-yield-profil for bygget"
+        ],
+        "positives": [
+          "Oppusset i 2018 — lavt vedlikeholdsbehov",
+          "Kort vei til marka og sentrum",
+          "Balkong og 6. etasje"
+        ]
+      }
+    }
+  ],
+  "runLog": [
+    {
+      "timestamp": "2026-08-19T08:00:00+02:00",
+      "message": "Automatisk daglig kjøring: 4 nye annonser analysert (1 match, 2 borderline, 1 filtrert). Steg fullført: steg1,steg2,steg3,steg4,steg5,steg6,steg7. 46 leiepriskomparable fra BBOX-søk (median 264 kr/m²/mnd). Ny match: Gamle Pukerudvei 9 Gulskogen/Pukerud (10,65% brutto/9,49% netto, lowConfidence stor bolig 127 m²). Borderline: Knoffs gate 12 Strømsø (6,02% brutto/3,59% netto, uvanlig høye kommunale avgifter 31 529 kr/år) og Tord Pedersens gate 95A Strøtvet (5,87% brutto/3,30% netto, fjordutsikt men høy felleskost). Filtrert: Danvikgata 20B Nybyen (6,35% brutto/0,76% netto, svært høy fellesgjeld 810 263 kr spiser hele avkastningen). MERKNAD: Steg 6.4 (top5-migrering) hoppet over denne kjøringen — referert ekstern fil lå utenfor tilgjengelige mapper. Denne kjøringen (2026-08-20) anvender top5-migreringen direkte fra de inline patch-parene i SKILL.md, uten avhengighet til noen ekstern fil."
+    },
+    {
+      "timestamp": "2026-08-20T08:00:00+02:00",
+      "message": "Automatisk daglig kjøring: 4 nye annonser analysert (2 match, 2 borderline, 0 filtrert). Steg fullført: steg1,steg2,steg3,steg4,steg5,steg6,steg7. 46 leiepriskomparable fra BBOX-søk (median 279 kr/m²/mnd). Nye matcher: Drammensveien 221 Mjøndalen (17,32% brutto/15,76% netto, lowConfidence stor enebolig 190 m² inkl. eksternt areal) og Vårveien 20 Åssiden (10,40% brutto/7,55% netto, markedsført som «perfekt utleieobjekt»). Borderline: Pettersvollen 38B Konnerud (3,88% brutto/2,58% netto, nybygg 2024 med høy kvm-pris) og Danvikgata 20 A Nybyen (6,89% brutto/1,24% netto, svært høy fellesgjeld 810 263 kr — tredje objekt i samme oppgang/gate med lignende problematikk etter 20B og 430983945). top5-migrering: 5/5 replaces anvendt (idempotent, ingen tidligere spor funnet i artifact-HTML)."
+    },
+    {
+      "timestamp": "2026-08-21T08:00:00+02:00",
+      "message": "Automatisk daglig kjøring: 2 nye finnkoder funnet og analysert (0 match, 2 borderline, 0 filtrert). Steg fullført: steg1,steg2,steg3,steg4,steg5,steg6,steg7. 46 leiepriskomparable fra BBOX-søk (median 297 kr/m²/mnd for 39 m² / 227 kr/m²/mnd for 81 m², størrelsesjustert). Borderline: Arbeidergata 34 Mjøndalen (5,39% brutto/3,73% netto, fullstendig oppgradert 39 m² 2-roms, marginalt negativ cashflow) og Skoleveien 2 Krokstadelva (5,31% brutto/3,48% netto, garasje og gulvvarme, moderne 2015-bygg). Trim: matches/borderline/filtered kuttet til siste 10 per kategori (redusert fra tidligere 18-20 per KJERNE-REGLER)."
+    },
+    {
+      "timestamp": "2026-08-22T18:59:57+02:00",
+      "message": "Automatisk daglig kjøring: 2 nye finnkoder funnet og analysert (1 match, 0 borderline, 1 filtrert). Steg fullført: steg1,steg2,steg3,steg4,steg5,steg6,steg7. 45 leiepriskomparable fra BBOX-søk (median 243 kr/m²/mnd for 88 m² / 300 kr/m²/mnd for 33 m², størrelsesjustert). Ny match: Vårveien 20 Åssiden (9,06% brutto/6,30% netto, markedsført som «perfekt utleieobjekt», 15 komparable i størrelsesintervall). Filtrert: Underlia 51 Drammen (4,72% brutto/2,26% netto, negativ cashflow, samme adresse som tidligere filtrert objekt 469459633). Trim: matches/filtered kuttet til siste 10 per kategori."
+    },
+    {
+      "timestamp": "2026-08-23T08:00:00+02:00",
+      "message": "Automatisk daglig kjøring: 2 nye finnkoder funnet og analysert (1 match, 1 borderline, 0 filtrert). Steg fullført: steg1,steg2,steg3,steg4,steg5,steg6,steg7. 44 leiepriskomparable fra BBOX-søk (median 190 kr/m²/mnd for 114 m² størrelsesfiltrert / 203 kr/m²/mnd for 141 m², størrelsesjustert 25%). Ny match: Skogerveien 12 Frydenhaug (8,37% brutto/7,40% netto, enebolig med skjermet hage, lowConfidence stor bolig 141 m²). Borderline: Tollbugata 60 Strømsø (6,33% brutto/3,79% netto, verneverdig bygård fra 1800, cashflow nær null). Trim: matches/borderline kuttet til siste 10 per kategori."
+    },
+    {
+      "timestamp": "2026-08-24T08:00:00+02:00",
+      "message": "Automatisk daglig kjøring: 2 nye finnkoder funnet og analysert (0 match, 2 borderline, 0 filtrert). Steg fullført: steg1,steg2,steg3,steg4,steg5,steg6,steg7. 44 leiepriskomparable fra BBOX-søk (median 240 kr/m²/mnd for 78 m² størrelsesfiltrert / 167 kr/m²/mnd for 115 m² størrelsesfiltrert, kun 5 komparable). Borderline: Andreas Borgens gate 3 Nybyen/Gamle Drammen (5,93% brutto/5,07% netto, høy kvm-pris for eldre tomannsbolig) og Eikebakken 8 Krokstadelva (5,61% brutto/4,92% netto, verditakst matcher prisantydning nøyaktig, tynt komparable-grunnlag). Trim: ingen trim nødvendig (borderline nøyaktig 10). top5-migrering: allerede anvendt."
+    },
+    {
+      "timestamp": "2026-08-25T08:00:00+02:00",
+      "message": "Automatisk daglig kjøring: 2 nye finnkoder funnet og analysert (1 match, 1 borderline, 0 filtrert). Steg fullført: steg1,steg2,steg3,steg4,steg5,steg6,steg7. 45 leiepriskomparable fra BBOX-søk (median 235 kr/m²/mnd for 91 m² størrelsesfiltrert / 250 kr/m²/mnd for 72 m² størrelsesfiltrert). Ny match: Vestsideveien 3C Lierbyen (6,97% brutto/4,41% netto, verditakst matcher prisantydning nøyaktig). Borderline: Engene 115A Gamle Drammen (5,47% brutto/2,97% netto, nye overflater og 2 p-plasser, høy felleskost). Trim: matches/borderline kuttet til siste 10 per kategori (eldste falt ut: Carl Stenseths vei 11A Krokstadelva / Gamle Riksvei 100 Solbergelva). top5-migrering: allerede anvendt."
+    },
+    {
+      "timestamp": "2026-08-26T08:00:00+02:00",
+      "message": "Automatisk daglig kjøring: 2 nye finnkoder funnet og analysert (2 match, 0 borderline, 0 filtrert). Steg fullført: steg1,steg2,steg3,steg4,steg5,steg6,steg7. 46 leiepriskomparable fra BBOX-søk (median 250 kr/m²/mnd for 72 m² størrelsesfiltrert / 264 kr/m²/mnd rå-median for 121 m², nedjustert 25% til 198 kr/m²/mnd pga. tynt datagrunnlag ≥120 m²). Nye matcher: Hotvetveien 85 Øren (8,38% brutto/4,56% netto, oppussingsklar, mulig IN-ordning eierskapsbegrensning bør avklares) og Austadgata 37 Strømsø (6,83% brutto/5,95% netto, ny garasje 2023, lowConfidence stor bolig 121 m² med kun 3 komparable). Trim: matches kuttet til siste 10 per kategori (eldste falt ut: Konnerudgata 86 Drammen / Langrand 41 Krokstadelva). top5-migrering: allerede anvendt."
+    },
+    {
+      "timestamp": "2026-08-27T08:00:00+02:00",
+      "message": "Automatisk daglig kjøring: 2 nye finnkoder funnet og analysert (0 match, 2 borderline, 0 filtrert). Steg fullført: steg1,steg2,steg3,steg4,steg5,steg6,steg7. 47 leiepriskomparable fra BBOX-søk (median 250 kr/m²/mnd for 66 m² størrelsesfiltrert, 24 komparable / 175 kr/m²/mnd for 113 m² størrelsesfiltrert, 7 komparable). Borderline: Arbeidergata 32 Mjøndalen (6,29% brutto/4,06% netto, heisadkomst og garasje, opprinnelig 3-roms ombygd til 2-roms) og Sikoriveien 9 Åsen/Mjøndalen (6,44% brutto/5,67% netto, stor eiet tomt 4 442 m², familievennlig). Trim: borderline kuttet til siste 10 per kategori (eldste falt ut: Knoffs gate 12 Strømsø / Tord Pedersens gate 95A Strøtvet). top5-migrering: allerede anvendt."
+    },
+    {
+      "timestamp": "2026-08-28T08:00:00+02:00",
+      "message": "Automatisk daglig kjøring: 2 nye finnkoder funnet og analysert (1 match, 1 borderline, 0 filtrert). Steg fullført: steg1,steg2,steg3,steg4,steg5,steg6,steg7. 48 leiepriskomparable fra BBOX-søk (median 205 kr/m²/mnd for 106 m² størrelsesfiltrert, 8 komparable / 230 kr/m²/mnd for 80 m² størrelsesfiltrert, 21 komparable). Ny match: Markusveien 22 Austad/Gamle Drammen (6,90% brutto/5,87% netto, renovert 2016, stor eiet tomt 739 m²). Borderline: Båtbyggerveien 19 Solbergelva (6,01% brutto/3,76% netto, kjøkken fornyet 2023, cashflow nær null). Trim: matches/borderline kuttet til siste 10 per kategori (eldste falt ut: Drammensveien 128 Mjøndalen / Pettersvollen 38B Konnerud). top5-migrering: allerede anvendt."
+    }
+  ]
+}/*__DATA_END__*/;
+
+function sortByNewest(arr) {
+  return [...arr].sort((a, b) => {
+    const ta = a.analyzedAt || '';
+    const tb = b.analyzedAt || '';
+    return tb.localeCompare(ta);
+  });
+}
+
+function fmtNok(n) {
+  if (n == null || isNaN(n)) return '—';
+  return new Intl.NumberFormat('nb-NO', { maximumFractionDigits: 0 }).format(Math.round(n)) + ' kr';
+}
+function fmtPct(n) {
+  if (n == null || isNaN(n)) return '—';
+  return n.toFixed(2).replace('.', ',') + ' %';
+}
+function fmtDate(iso) {
+  if (!iso) return 'Aldri';
+  const d = new Date(iso);
+  return d.toLocaleString('nb-NO', { dateStyle: 'medium', timeStyle: 'short' });
+}
+
+function metric(label, value, state, subtext) {
+  const sub = subtext ? `<div class="metric-sub">${subtext}</div>` : '';
+  return `<div class="metric ${state || 'neutral'}"><div class="metric-label">${label}</div><div class="metric-value">${value}</div>${sub}</div>`;
+}
+
+function scoreProperty(p) {
+  if (!p || !p.askingPrice) return -100;
+  const flags = (p.ai && p.ai.redFlags ? p.ai.redFlags.length : 0);
+  const pos = (p.ai && p.ai.positives ? p.ai.positives.length : 0);
+  let s = 0;
+  s += (p.totalReturnEKPct || 0) * 0.4;
+  s += (p.bruttoyield || 0) * 0.15;
+  s += (p.nettoyield || 0) * 0.15;
+  s += (p.cashOnCash || 0) * 0.10;
+  s += Math.min(pos * 2, 10);
+  s -= Math.min(flags * 3, 15);
+  if (p.lowConfidence) s -= 5;
+  if (p.cashflow != null && p.cashflow < 0) s -= 10;
+  if (p.buildYear && p.buildYear < 1950) s -= 3;
+  return s;
+}
+
+function rankReason(p) {
+  const parts = [];
+  const trek = p.totalReturnEKPct || 0;
+  if (trek > 15) parts.push('sterk total EK-avk. ' + fmtPct(trek));
+  else if (trek > 10) parts.push('god total EK-avk. ' + fmtPct(trek));
+  else if (trek > 5) parts.push('moderat EK-avk. ' + fmtPct(trek));
+  else parts.push('lav EK-avk. ' + fmtPct(trek));
+  const flags = (p.ai && p.ai.redFlags ? p.ai.redFlags.length : 0);
+  const pos = (p.ai && p.ai.positives ? p.ai.positives.length : 0);
+  if (flags === 0) parts.push('ingen røde flagg');
+  else if (flags <= 2) parts.push(flags + ' moderate flagg');
+  else parts.push(flags + ' røde flagg (obs)');
+  if (pos >= 4) parts.push(pos + ' pluss-momenter');
+  if (p.bruttoyield >= 8) parts.push('sterk bruttoyield');
+  if (p.cashflow > 50000) parts.push('solid cashflow');
+  if (p.cashflow != null && p.cashflow < 0) parts.push('negativ cashflow (⚠)');
+  if (p.lowConfidence) parts.push('leieanslag usikkert');
+  if (p.buildYear && p.buildYear < 1950) parts.push('gammelt bygg (' + p.buildYear + ')');
+  return parts.join(', ');
+}
+
+function rankAllProperties() {
+  const all = [];
+  (DATA.matches || []).forEach(p => all.push(Object.assign({}, p, {_category: 'match'})));
+  (DATA.borderline || []).forEach(p => all.push(Object.assign({}, p, {_category: 'borderline'})));
+  (DATA.filtered || []).forEach(p => all.push(Object.assign({}, p, {_category: 'filtered'})));
+  return all.map(p => Object.assign({}, p, {_score: scoreProperty(p)}))
+            .sort((a, b) => b._score - a._score);
+}
+
+function renderTopFive() {
+  const ranked = rankAllProperties();
+  const top = ranked.slice(0, 5);
+  if (top.length === 0) return '';
+  const rows = top.map((p, i) => {
+    const catBadge = p._category === 'match' ? 'M' : p._category === 'borderline' ? 'B' : 'F';
+    const catClass = 'cat-' + p._category;
+    const flagsCount = (p.ai && p.ai.redFlags ? p.ai.redFlags.length : 0);
+    const posCount = (p.ai && p.ai.positives ? p.ai.positives.length : 0);
+    const trekClass = (p.totalReturnEKPct || 0) > 0 ? 'pos' : 'neg';
+    return '<tr class="top-row" onclick="scrollToProperty(\'' + p.finnkode + '\')">' +
+      '<td class="rank">' + (i + 1) + '</td>' +
+      '<td><span class="cat-badge ' + catClass + '">' + catBadge + '</span></td>' +
+      '<td class="addr-cell">' + (p.address || '—') + '<div class="reason">' + rankReason(p) + '</div></td>' +
+      '<td class="num ' + trekClass + '">' + fmtPct(p.totalReturnEKPct) + '</td>' +
+      '<td class="num">' + fmtPct(p.bruttoyield) + '</td>' +
+      '<td class="num">' + fmtPct(p.nettoyield) + '</td>' +
+      '<td class="flags-cell">⚠ ' + flagsCount + ' · ✓ ' + posCount + '</td>' +
+      '<td class="score-cell">' + p._score.toFixed(1) + '</td>' +
+    '</tr>';
+  }).join('');
+  return '<div class="top-five">' +
+    '<div class="top-five-title">🏆 Topp 5 anbefalinger (av ' + ranked.length + ' eiendommer)</div>' +
+    '<table class="top-table">' +
+      '<thead><tr><th>#</th><th>Kat</th><th>Eiendom</th><th style="text-align:right">Total EK %</th><th style="text-align:right">Brutto</th><th style="text-align:right">Netto</th><th>Flagg</th><th style="text-align:right">Score</th></tr></thead>' +
+      '<tbody>' + rows + '</tbody>' +
+    '</table>' +
+    '<div class="top-five-note">Klikk en rad for å hoppe til full analyse ↓ · M=match, B=borderline, F=filtered</div>' +
+  '</div>';
+}
+
+function scrollToProperty(finnkode) {
+  const el = document.getElementById('prop-' + finnkode);
+  if (!el) return;
+  el.scrollIntoView({behavior: 'smooth', block: 'start'});
+  el.classList.add('highlighted');
+  setTimeout(() => el.classList.remove('highlighted'), 2000);
+}
+
+function card(p, klass) {
+  const brutto = p.bruttoyield;
+  const netto = p.nettoyield;
+  const bruttoState = brutto >= 6.5 ? 'pass' : 'fail';
+  const nettoState = netto >= 2.5 ? 'pass' : 'fail';
+  const cashflowState = p.cashflow > 0 ? 'pass' : 'fail';
+
+  const aiHtml = p.ai ? `
+    <div class="ai">
+      <h4>AI-vurdering</h4>
+      ${p.ai.priceVsArea ? `<div class="factor"><span class="factor-label">Pris vs. område:</span> ${p.ai.priceVsArea}</div>` : ''}
+      ${p.ai.condition ? `<div class="factor"><span class="factor-label">Tilstand/oppussing:</span> ${p.ai.condition}</div>` : ''}
+      ${p.ai.location ? `<div class="factor"><span class="factor-label">Beliggenhet:</span> ${p.ai.location}</div>` : ''}
+      ${(p.ai.redFlags || []).map(f => `<div class="flag">⚠ ${f}</div>`).join('')}
+      ${(p.ai.positives || []).map(f => `<div class="flag flag-positive">✓ ${f}</div>`).join('')}
+    </div>` : '';
+
+  return `
+    <div class="card ${klass}" id="prop-${p.finnkode}">
+      <div class="card-head">
+        <div>
+          <div class="addr">${p.address || '—'}</div>
+          <div class="addr-sub">${[p.type, p.size ? p.size + ' m²' : null, p.bedrooms ? p.bedrooms + ' sov' : null, p.buildYear ? 'byggeår ' + p.buildYear : null].filter(Boolean).join(' · ')}</div>
+        </div>
+        <div class="price-block">
+          <div class="price-main">${fmtNok(p.askingPrice)}</div>
+          <div class="price-sub">Totalpris ${fmtNok(p.totalPrice)}</div>
+          ${p.commonCosts ? `<div class="price-sub">Fellesutg. ${fmtNok(p.commonCosts)}/mnd</div>` : ''}
+        </div>
+      </div>
+      <div class="metrics-label">Inntekter &amp; kostnader</div>
+      <div class="metrics">
+        ${metric('Est. månedsleie', fmtNok(p.estMonthlyRent), 'neutral', p.rentPerSqm ? Math.round(p.rentPerSqm) + ' kr/m² · ' + (p.compCount || '?') + ' komparable' : null)}
+        ${metric('Årlig brutto leie', fmtNok(p.annualGrossRent), 'neutral', '11,4 mnd belegg')}
+        ${metric('Eierkostnader/år', fmtNok(p.annualOwnerCosts), 'neutral', 'felles + komm + 7 % vedl.')}
+        ${metric('NOI/år', fmtNok(p.noi), 'neutral', 'brutto − eierkostn.')}
+      </div>
+      <div class="metrics-label">Avkastning</div>
+      <div class="metrics">
+        ${metric('Bruttoyield', fmtPct(brutto), bruttoState, 'mål ≥ 6,5 %')}
+        ${metric('Nettoyield', fmtPct(netto), nettoState, 'mål ≥ 2,5 %')}
+        ${metric('Cashflow/år', fmtNok(p.cashflow), cashflowState, 'etter rente')}
+        ${metric('Cash-on-cash', fmtPct(p.cashOnCash), p.cashOnCash > 0 ? 'pass' : 'fail', 'avkast. på EK')}
+      </div>
+      <div class="metrics-label">Finansiering (75 % LTV @ 5 % avdragsfritt)</div>
+      <div class="metrics">
+        ${metric('Lån', fmtNok(p.loanAmount), 'neutral', '75 % av kjøpesum')}
+        ${metric('Egenkapital', fmtNok(p.equity), 'neutral', '25 % + 2,5 % omk.')}
+        ${metric('Rente/år', fmtNok(p.annualInterest), 'neutral', '5 % av lån')}
+        ${metric('Rente/mnd', fmtNok(p.annualInterest / 12), 'neutral', 'lånekostnad')}
+      </div>
+      <div class="metrics-label">Inkl. verdistigning (1,75 %/år anslag)</div>
+      <div class="metrics">
+        ${metric('Verdistigning år 1', fmtNok(p.annualAppreciation), 'neutral', '1,75 % av kjøpesum')}
+        ${metric('Total avk. kr/år', fmtNok(p.totalReturnAnnual), p.totalReturnAnnual > 0 ? 'pass' : 'fail', 'cashflow + verdistigning')}
+        ${metric('Total avk. EK %', fmtPct(p.totalReturnEKPct), p.totalReturnEKPct > 0 ? 'pass' : 'fail', 'år 1, est.')}
+        ${metric('Løft fra verdistigning', fmtPct(p.totalReturnEKPct - p.cashOnCash), 'neutral', 'pp over cash-on-cash')}
+      </div>
+      ${aiHtml}
+      <div class="footer-links">
+        <button class="excel-btn" onclick="exportToExcel('${p.finnkode}', ${JSON.stringify(p.address || '').replace(/"/g, '&quot;')})">
+          📊 Last ned til Excel
+        </button>
+        <a href="${p.finnUrl}" target="_blank">Se annonsen på Finn →</a>
+        <span style="color:#999">Finnkode ${p.finnkode}</span>
+        <span style="color:#999">Analysert ${fmtDate(p.analyzedAt)}</span>
+      </div>
+    </div>`;
+}
+
+function showToast(msg, ms) {
+  let t = document.getElementById('toast');
+  if (!t) {
+    t = document.createElement('div');
+    t.id = 'toast';
+    t.className = 'toast';
+    document.body.appendChild(t);
+  }
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(window._toastTimer);
+  window._toastTimer = setTimeout(() => t.classList.remove('show'), ms || 4500);
+}
+
+function exportToExcel(finnkode, address) {
+  const prompt = `Generer Excel for finnkode ${finnkode} (${address}) og legg til som ny fane i Kalkyle eiendom.xlsx. Følg prosedyren i ~/Documents/Personlig/Claude/README-finn-excel.md`;
+
+  let sent = false;
+  try {
+    if (typeof sendPrompt === 'function') { sendPrompt(prompt); sent = true; }
+    else if (window.cowork && typeof window.cowork.sendPrompt === 'function') {
+      window.cowork.sendPrompt(prompt); sent = true;
+    }
+  } catch (e) { /* fall through til clipboard */ }
+
+  if (sent) {
+    showToast('✓ Sendt til chatten. Bytt til chat-fanen — Claude må være aktiv der for å kjøre generatoren og bekrefte at fanen er lagt til i Excel-arket ditt. (Lukk Excel først hvis det er åpent.)', 8000);
+    return;
+  }
+
+  navigator.clipboard.writeText(prompt).then(() => {
+    showToast('Kommando kopiert til utklippstavle. Bytt til Cowork-chatten og lim inn (⌘V) for å generere Excel-fanen. (Lukk Excel først hvis det er åpent.)', 8000);
+  }).catch(() => {
+    showToast('Kunne ikke kopiere automatisk. Skriv i chatten: ' + prompt, 10000);
+  });
+}
+
+function render() {
+  document.getElementById('last-updated').textContent = fmtDate(DATA.lastUpdated);
+  document.getElementById('last-status').textContent = DATA.lastRunStatus || '—';
+  document.getElementById('analyzed-count').textContent = DATA.analyzedCount || 0;
+
+  const topContainer = document.getElementById('top-five-container');
+  if (topContainer) topContainer.innerHTML = renderTopFive();
+
+  const c = document.getElementById('content');
+  const status = document.getElementById('status-area');
+
+  if (!DATA.lastUpdated) {
+    status.innerHTML = `<div class="status-banner">
+      Dashboardet er klart, men ingen analyser er kjørt ennå. Den daglige tasken kjører kl. 08:00 og fyller på treff her. Du kan også trigge den manuelt fra <em>Innstillinger → Scheduled tasks → finn-daily-analyzer → Kjør nå</em>.
+    </div>`;
+  }
+
+  let html = '';
+
+  if (DATA.matches && DATA.matches.length > 0) {
+    html += `<div class="section-title match">✓ Matcher (passerer hardt filter) <span class="count">${DATA.matches.length}</span></div>`;
+    html += sortByNewest(DATA.matches).map(p => card(p, 'match')).join('');
+  }
+
+  if (DATA.borderline && DATA.borderline.length > 0) {
+    html += `<div class="section-title borderline">~ Borderline (én av to terskler ikke nådd) <span class="count">${DATA.borderline.length}</span></div>`;
+    html += sortByNewest(DATA.borderline).map(p => card(p, 'borderline')).join('');
+  }
+
+  if (DATA.filtered && DATA.filtered.length > 0) {
+    html += `<div class="section-title filtered">✗ Filtrert ut <span class="count">${DATA.filtered.length}</span></div>`;
+    const sortedFiltered = sortByNewest(DATA.filtered);
+    html += sortedFiltered.slice(0, 20).map(p => card(p, 'filtered')).join('');
+    if (sortedFiltered.length > 20) {
+      html += `<div style="text-align:center; color:#999; font-size:12px; padding:8px;">… ${sortedFiltered.length - 20} flere ikke vist</div>`;
+    }
+  }
+
+  if (!html && DATA.lastUpdated) {
+    html = '<div class="empty"><h3>Ingen annonser analysert i siste kjøring</h3><p>Det betyr enten at det ikke er nye annonser siden sist, eller at de er allerede registrert.</p></div>';
+  }
+
+  c.innerHTML = html;
+
+  if (DATA.runLog && DATA.runLog.length > 0) {
+    const log = DATA.runLog.slice(-10).reverse();
+    document.getElementById('runlog').innerHTML =
+      '<div style="font-weight:600; color:#444; margin-bottom:6px;">Kjørelogg (siste 10):</div>' +
+      log.map(r => `<div class="runlog-entry"><span class="ts">${fmtDate(r.timestamp)}</span>${r.message}</div>`).join('');
+  }
+}
+
+render();
+</script>
+</body>
+</html>
